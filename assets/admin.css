@@ -1,0 +1,91 @@
+/**
+ * Geo Regional Router Admin Stylesheet
+ */
+
+.grr-settings-wrap {
+	max-width: 1100px;
+	margin-top: 20px;
+}
+
+.grr-card {
+	background: #ffffff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px 24px;
+	margin-top: 20px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.grr-card h3 {
+	margin-top: 0;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 1.1em;
+	color: #1d2327;
+}
+
+.grr-badge {
+	display: inline-block;
+	background: #2271b1;
+	color: #ffffff;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 3px;
+	font-size: 0.9em;
+}
+
+.grr-status-badge {
+	display: inline-block;
+	font-weight: 600;
+	padding: 3px 8px;
+	border-radius: 3px;
+	font-size: 0.85em;
+	text-transform: uppercase;
+}
+
+.grr-status-redirect {
+	background: #d63638;
+	color: #ffffff;
+}
+
+.grr-status-noredirect {
+	background: #00a32a;
+	color: #ffffff;
+}
+
+.grr-sim-result-box {
+	background: #f6f7f7;
+	border-left: 4px solid #2271b1;
+	padding: 15px 20px;
+	margin-top: 15px;
+	border-radius: 0 4px 4px 0;
+}
+
+.grr-sim-result-box.is-redirect {
+	border-left-color: #d63638;
+}
+
+.grr-sim-result-box.is-noredirect {
+	border-left-color: #00a32a;
+}
+
+.grr-sim-result-box h4 {
+	margin: 0 0 10px 0;
+	font-size: 1.05em;
+}
+
+.grr-sim-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.grr-sim-table td {
+	padding: 6px 0;
+	vertical-align: top;
+}
+
+.grr-sim-table td:first-child {
+	width: 180px;
+	font-weight: 600;
+	color: #50575e;
+}
