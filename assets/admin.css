@@ -1,5 +1,5 @@
 /**
- * Geo Regional Router Admin Stylesheet
+ * Geo Regional Router Admin & Frontend Stylesheet
  */
 
 .grr-settings-wrap {
@@ -88,4 +88,86 @@
 	width: 180px;
 	font-weight: 600;
 	color: #50575e;
+}
+
+/* Frontend Regional Switcher Component */
+.grr-frontend-switcher {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	background: #ffffff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 6px 12px;
+	font-family: inherit;
+	font-size: 14px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.grr-switcher-label {
+	font-weight: 600;
+	color: #333333;
+}
+
+.grr-switcher-select {
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	padding: 4px 8px;
+	background-color: #fff;
+	color: #333;
+	font-size: 14px;
+	cursor: pointer;
+	outline: none;
+	transition: border-color 0.2s ease;
+}
+
+.grr-switcher-select:focus,
+.grr-switcher-select:hover {
+	border-color: #2271b1;
+}
+
+/* Switcher Buttons Style */
+.grr-switcher-buttons {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: inherit;
+	font-size: 14px;
+}
+
+.grr-switcher-btn {
+	display: inline-block;
+	padding: 5px 12px;
+	border: 1px solid #d0d0d0;
+	border-radius: 20px;
+	background: #ffffff;
+	color: #333333;
+	text-decoration: none;
+	font-size: 13px;
+	font-weight: 500;
+	transition: all 0.2s ease;
+}
+
+.grr-switcher-btn:hover {
+	border-color: #2271b1;
+	color: #2271b1;
+	background: #f0f6fc;
+}
+
+.grr-switcher-btn.is-active {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #ffffff;
+	font-weight: 600;
+}
+
+/* Floating Bottom-Right Widget */
+.grr-floating-widget-wrapper {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	z-index: 99999;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	border-radius: 8px;
+	overflow: hidden;
 }

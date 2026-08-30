@@ -47,7 +47,7 @@ class Settings {
 		// Active tab handling
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
 
-		// Display saved notice
+		// Display notices
 		if ( isset( $_GET['updated'] ) && '1' === $_GET['updated'] ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved successfully.', 'geo-regional-router' ) . '</p></div>';
 		}
@@ -59,7 +59,7 @@ class Settings {
 		<div class="wrap grr-settings-wrap">
 			<h1><?php esc_html_e( 'Geo Regional Router Settings', 'geo-regional-router' ); ?></h1>
 			<p class="description">
-				<?php esc_html_e( 'Configure country-based automatic URL routing across your WordPress Multisite network.', 'geo-regional-router' ); ?>
+				<?php esc_html_e( 'Configure country-based automatic URL routing, edge caching, SEO hreflang, and regional switchers across your WordPress Multisite network.', 'geo-regional-router' ); ?>
 			</p>
 
 			<h2 class="nav-tab-wrapper">
@@ -72,13 +72,16 @@ class Settings {
 				<a href="?page=geo-regional-router&tab=detection" class="nav-tab <?php echo 'detection' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Country Detection', 'geo-regional-router' ); ?>
 				</a>
+				<a href="?page=geo-regional-router&tab=features" class="nav-tab <?php echo 'features' === $active_tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'SEO & Edge Cache & UI', 'geo-regional-router' ); ?>
+				</a>
 				<a href="?page=geo-regional-router&tab=diagnostics" class="nav-tab <?php echo 'diagnostics' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Diagnostics Tool', 'geo-regional-router' ); ?>
 				</a>
 			</h2>
 
 			<?php if ( 'diagnostics' === $active_tab ) : ?>
-				<?php Plugin::get_instance()->get_router(); // Trigger registration if needed ?>
+				<?php Plugin::get_instance()->get_router(); ?>
 				<?php ( new Diagnostics( Plugin::get_instance()->get_country_detector(), Plugin::get_instance()->get_router() ) )->render_diagnostics_panel(); ?>
 			<?php else : ?>
 				<form method="post" action="<?php echo esc_url( network_admin_url( 'edit.php?action=grr_save_settings' ) ); ?>">
@@ -243,10 +246,10 @@ class Settings {
 									<td>
 										<label>
 											<input type="checkbox" name="country_source_header" value="1" <?php checked( 1, $options['country_source_header'] ?? 0 ); ?> />
-											<?php esc_html_e( 'Enable custom HTTP header country detection', 'geo-regional-router' ); ?>
+											<?php esc_html_e( 'Enable custom HTTP header country detection (Priority 2)', 'geo-regional-router' ); ?>
 										</label><br /><br />
 										<input type="text" name="country_custom_header_name" value="<?php echo esc_attr( $options['country_custom_header_name'] ?? 'HTTP_X_GEOIP_COUNTRY' ); ?>" class="regular-text" placeholder="HTTP_X_GEOIP_COUNTRY" />
-										<p class="description"><?php esc_html_e( 'Header key as received in $_SERVER (e.g. HTTP_X_GEOIP_COUNTRY or HTTP_CF_IPCOUNTRY).', 'geo-regional-router' ); ?></p>
+										<p class="description"><?php esc_html_e( 'Header key as received in $_SERVER (e.g. HTTP_X_GEOIP_COUNTRY).', 'geo-regional-router' ); ?></p>
 									</td>
 								</tr>
 								<tr>
@@ -259,10 +262,13 @@ class Settings {
 									</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php esc_html_e( 'MaxMind Database Path', 'geo-regional-router' ); ?></th>
+									<th scope="row"><?php esc_html_e( 'MaxMind Database Path & License', 'geo-regional-router' ); ?></th>
 									<td>
 										<input type="text" name="maxmind_db_path" value="<?php echo esc_attr( $options['maxmind_db_path'] ?? '' ); ?>" class="large-text" placeholder="/path/to/GeoLite2-Country.mmdb" />
 										<p class="description"><?php esc_html_e( 'Absolute path to local MaxMind GeoLite2-Country.mmdb binary database file.', 'geo-regional-router' ); ?></p>
+										<br />
+										<label><strong><?php esc_html_e( 'MaxMind License Key (For Auto-Updates):', 'geo-regional-router' ); ?></strong></label><br />
+										<input type="password" name="maxmind_license_key" value="<?php echo esc_attr( $options['maxmind_license_key'] ?? '' ); ?>" class="regular-text" placeholder="License key for weekly updates" />
 									</td>
 								</tr>
 								<tr>
@@ -278,6 +284,56 @@ class Settings {
 												<?php esc_html_e( 'Delete plugin settings option on uninstall (Default: OFF)', 'geo-regional-router' ); ?>
 											</label>
 										</fieldset>
+									</td>
+								</tr>
+							</table>
+						</div>
+
+					<?php elseif ( 'features' === $active_tab ) : ?>
+						<div class="grr-card">
+							<h3><?php esc_html_e( 'SEO & Edge Cache & Admin UI Features', 'geo-regional-router' ); ?></h3>
+							<table class="form-table">
+								<tr>
+									<th scope="row"><?php esc_html_e( 'SEO hreflang Meta Tags', 'geo-regional-router' ); ?></th>
+									<td>
+										<label>
+											<input type="checkbox" name="enable_hreflang" value="1" <?php checked( 1, $options['enable_hreflang'] ?? 1 ); ?> />
+											<?php esc_html_e( 'Auto-inject hreflang alternate links (bn-BD, hi-IN, x-default) into page <head>', 'geo-regional-router' ); ?>
+										</label>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php esc_html_e( 'Edge Cache Response Headers', 'geo-regional-router' ); ?></th>
+									<td>
+										<label>
+											<input type="checkbox" name="enable_edge_headers" value="1" <?php checked( 1, $options['enable_edge_headers'] ?? 1 ); ?> />
+											<?php esc_html_e( 'Send "Vary: CF-IPCountry, Accept-Language" header to prevent reverse proxies from caching wrong regional redirects', 'geo-regional-router' ); ?>
+										</label>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php esc_html_e( 'Admin Bar Quick Switcher', 'geo-regional-router' ); ?></th>
+									<td>
+										<label>
+											<input type="checkbox" name="enable_admin_bar" value="1" <?php checked( 1, $options['enable_admin_bar'] ?? 1 ); ?> />
+											<?php esc_html_e( 'Display Quick Geo Country Switcher in top WordPress Admin Bar for Network Admins', 'geo-regional-router' ); ?>
+										</label>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php esc_html_e( 'Frontend Regional Switcher', 'geo-regional-router' ); ?></th>
+									<td>
+										<label>
+											<input type="checkbox" name="enable_frontend_switcher" value="1" <?php checked( 1, $options['enable_frontend_switcher'] ?? 1 ); ?> />
+											<?php esc_html_e( 'Enable [geo_regional_switcher] shortcode for visitors', 'geo-regional-router' ); ?>
+										</label><br />
+										<label>
+											<input type="checkbox" name="enable_floating_widget" value="1" <?php checked( 1, $options['enable_floating_widget'] ?? 0 ); ?> />
+											<?php esc_html_e( 'Automatically render floating regional switcher in bottom-right corner of frontend', 'geo-regional-router' ); ?>
+										</label>
+										<p class="description">
+											<?php esc_html_e( 'Shortcode examples: [geo_regional_switcher], [geo_regional_switcher style="buttons"], [geo_regional_switcher style="flags"]', 'geo-regional-router' ); ?>
+										</p>
 									</td>
 								</tr>
 							</table>
@@ -309,7 +365,6 @@ class Settings {
 			$site_bd     = isset( $_POST['site_bd'] ) ? (int) $_POST['site_bd'] : 0;
 			$site_in     = isset( $_POST['site_in'] ) ? (int) $_POST['site_in'] : 0;
 
-			// Validate duplicate sites
 			if ( $site_global > 0 && ( $site_global === $site_bd || $site_global === $site_in || ( $site_bd > 0 && $site_bd === $site_in ) ) ) {
 				wp_safe_redirect( network_admin_url( 'settings.php?page=geo-regional-router&tab=general&error=duplicate_sites' ) );
 				exit;
@@ -341,8 +396,16 @@ class Settings {
 			$existing['country_custom_header_name'] = isset( $_POST['country_custom_header_name'] ) ? sanitize_text_field( wp_unslash( $_POST['country_custom_header_name'] ) ) : 'HTTP_X_GEOIP_COUNTRY';
 			$existing['trusted_proxies']            = isset( $_POST['trusted_proxies'] ) ? sanitize_textarea_field( wp_unslash( $_POST['trusted_proxies'] ) ) : '';
 			$existing['maxmind_db_path']            = isset( $_POST['maxmind_db_path'] ) ? sanitize_text_field( wp_unslash( $_POST['maxmind_db_path'] ) ) : '';
+			$existing['maxmind_license_key']        = isset( $_POST['maxmind_license_key'] ) ? sanitize_text_field( wp_unslash( $_POST['maxmind_license_key'] ) ) : '';
 			$existing['debug_mode']                 = isset( $_POST['debug_mode'] ) ? 1 : 0;
 			$existing['delete_data_on_uninstall']   = isset( $_POST['delete_data_on_uninstall'] ) ? 1 : 0;
+
+		} elseif ( 'features' === $tab ) {
+			$existing['enable_hreflang']          = isset( $_POST['enable_hreflang'] ) ? 1 : 0;
+			$existing['enable_edge_headers']      = isset( $_POST['enable_edge_headers'] ) ? 1 : 0;
+			$existing['enable_admin_bar']         = isset( $_POST['enable_admin_bar'] ) ? 1 : 0;
+			$existing['enable_frontend_switcher'] = isset( $_POST['enable_frontend_switcher'] ) ? 1 : 0;
+			$existing['enable_floating_widget']   = isset( $_POST['enable_floating_widget'] ) ? 1 : 0;
 		}
 
 		update_site_option( 'grr_options', $existing );

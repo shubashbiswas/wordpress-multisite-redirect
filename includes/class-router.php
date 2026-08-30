@@ -41,6 +41,56 @@ class Router {
 	 */
 	public function init(): void {
 		add_action( 'template_redirect', array( $this, 'process_routing' ), 1 );
+		add_action( 'wp_head', array( $this, 'output_hreflang_tags' ), 2 );
+		add_action( 'send_headers', array( $this, 'output_edge_cache_headers' ) );
+	}
+
+	/**
+	 * Output Edge Cache Vary headers if enabled.
+	 */
+	public function output_edge_cache_headers(): void {
+		$options = get_site_option( 'grr_options', array() );
+		if ( ! empty( $options['enable_edge_headers'] ) && ! headers_sent() ) {
+			header( 'Vary: CF-IPCountry, Accept-Language', false );
+		}
+	}
+
+	/**
+	 * Output SEO hreflang alternate links in page <head> if enabled.
+	 */
+	public function output_hreflang_tags(): void {
+		$options = get_site_option( 'grr_options', array() );
+		if ( empty( $options['enable_hreflang'] ) ) {
+			return;
+		}
+
+		$site_global_id = (int) ( $options['site_global'] ?? 0 );
+		$site_bd_id     = (int) ( $options['site_bd'] ?? 0 );
+		$site_in_id     = (int) ( $options['site_in'] ?? 0 );
+
+		if ( ! $site_global_id || ! $site_bd_id || ! $site_in_id ) {
+			return;
+		}
+
+		$global_url = get_site_url( $site_global_id );
+		$bd_url     = get_site_url( $site_bd_id );
+		$in_url     = get_site_url( $site_in_id );
+
+		$request_uri = $_SERVER['REQUEST_URI'] ?? '/';
+		$parsed_uri  = wp_parse_url( $request_uri );
+		$path        = $parsed_uri['path'] ?? '/';
+		$query       = isset( $parsed_uri['query'] ) ? '?' . $parsed_uri['query'] : '';
+
+		$clean_path = $this->extract_clean_path( $path, array( $global_url, $bd_url, $in_url ) );
+
+		$href_default = rtrim( $global_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query;
+		$href_bd      = rtrim( $bd_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query;
+		$href_in      = rtrim( $in_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query;
+
+		echo "\n<!-- Geo Regional Router SEO Hreflang Tags -->\n";
+		echo '<link rel="alternate" hreflang="x-default" href="' . esc_url( $href_default ) . '" />' . "\n";
+		echo '<link rel="alternate" hreflang="bn-BD" href="' . esc_url( $href_bd ) . '" />' . "\n";
+		echo '<link rel="alternate" hreflang="hi-IN" href="' . esc_url( $href_in ) . '" />' . "\n";
 	}
 
 	/**
@@ -394,11 +444,15 @@ class Router {
 			return;
 		}
 
-		$expiry = 0; // Session cookie
+		$expiry = 0;
 		if ( '24h' === $mode ) {
 			$expiry = time() + DAY_IN_SECONDS;
 		} elseif ( '7d' === $mode ) {
 			$expiry = time() + ( 7 * DAY_IN_SECONDS );
+		}
+
+		if ( headers_sent() ) {
+			return;
 		}
 
 		$cookie_name = 'grr_visitor_country';

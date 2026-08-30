@@ -84,13 +84,188 @@ final class Plugin {
 	private function init_hooks(): void {
 		add_action( 'network_admin_notices', array( $this, 'check_network_configuration_notice' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
+		add_action( 'wp_footer', array( $this, 'render_floating_widget' ) );
+
+		// Admin Bar Quick Switcher
+		add_action( 'admin_bar_menu', array( $this, 'register_admin_bar_switcher' ), 100 );
+
+		// Shortcode for Frontend Regional Switcher
+		add_shortcode( 'geo_regional_switcher', array( $this, 'render_frontend_switcher_shortcode' ) );
 
 		// Register settings and admin menus
 		$this->settings->init();
 		$this->diagnostics->init();
 
+		// Register detector early hooks (cookie handler)
+		$this->country_detector->init();
+
 		// Register router engine on template_redirect hook
 		$this->router->init();
+
+		// Register weekly MaxMind cron task
+		add_action( 'grr_weekly_maxmind_update', array( $this, 'run_maxmind_cron_update' ) );
+		if ( ! wp_next_scheduled( 'grr_weekly_maxmind_update' ) ) {
+			wp_schedule_event( time(), 'weekly', 'grr_weekly_maxmind_update' );
+		}
+	}
+
+	/**
+	 * Register Admin Bar Country Switcher dropdown for Network Admins.
+	 *
+	 * @param \WP_Admin_Bar $wp_admin_bar WP Admin Bar instance.
+	 */
+	public function register_admin_bar_switcher( \WP_Admin_Bar $wp_admin_bar ): void {
+		$options = get_site_option( 'grr_options', array() );
+		if ( empty( $options['enable_admin_bar'] ) || ! current_user_can( 'manage_network_options' ) ) {
+			return;
+		}
+
+		$detected  = $this->country_detector->detect_country();
+		$code      = $detected['country'];
+		$src       = $detected['source'];
+		$is_custom = ( false !== strpos( $src, 'Test Mode' ) || false !== strpos( $src, 'Manual' ) );
+
+		$title = sprintf( '🌐 Geo: %s%s', esc_html( $code ), $is_custom ? ' (' . esc_html( $code ) . ')' : '' );
+
+		$wp_admin_bar->add_node(
+			array(
+				'id'    => 'grr_geo_bar',
+				'title' => $title,
+				'href'  => network_admin_url( 'settings.php?page=geo-regional-router&tab=diagnostics' ),
+			)
+		);
+
+		$countries = array(
+			'BD'     => '🇧🇩 Bangladesh (BD)',
+			'IN'     => '🇮🇳 India (IN)',
+			'US'     => '🇺🇸 United States (US)',
+			'GB'     => '🇬🇧 United Kingdom (GB)',
+		);
+
+		$current_url = $this->router->get_current_url();
+
+		foreach ( $countries as $cc => $label ) {
+			$wp_admin_bar->add_node(
+				array(
+					'id'     => 'grr_geo_test_' . strtolower( $cc ),
+					'parent' => 'grr_geo_bar',
+					'title'  => $label,
+					'href'   => add_query_arg( 'grr_test_country', $cc, $current_url ),
+				)
+			);
+		}
+
+		$wp_admin_bar->add_node(
+			array(
+				'id'     => 'grr_geo_test_reset',
+				'parent' => 'grr_geo_bar',
+				'title'  => '🔄 Reset Override',
+				'href'   => add_query_arg( 'grr_test_country', 'reset', $current_url ),
+			)
+		);
+	}
+
+	/**
+	 * Shortcode callback for [geo_regional_switcher].
+	 *
+	 * Attributes:
+	 *   - style: "dropdown" (default), "buttons", or "flags"
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string HTML output.
+	 */
+	public function render_frontend_switcher_shortcode( array $atts = array() ): string {
+		$options = get_site_option( 'grr_options', array() );
+		if ( isset( $options['enable_frontend_switcher'] ) && ! $options['enable_frontend_switcher'] ) {
+			return '';
+		}
+
+		$atts = shortcode_atts(
+			array(
+				'style' => 'dropdown',
+			),
+			$atts,
+			'geo_regional_switcher'
+		);
+
+		$site_global_id = (int) ( $options['site_global'] ?? 0 );
+		$site_bd_id     = (int) ( $options['site_bd'] ?? 0 );
+		$site_in_id     = (int) ( $options['site_in'] ?? 0 );
+
+		if ( ! $site_global_id || ! $site_bd_id || ! $site_in_id ) {
+			return '';
+		}
+
+		$global_url = get_site_url( $site_global_id );
+		$bd_url     = get_site_url( $site_bd_id );
+		$in_url     = get_site_url( $site_in_id );
+
+		$request_uri = $_SERVER['REQUEST_URI'] ?? '/';
+		$parsed_uri  = wp_parse_url( $request_uri );
+		$path        = $parsed_uri['path'] ?? '/';
+		$query       = isset( $parsed_uri['query'] ) ? '?' . $parsed_uri['query'] : '';
+
+		$clean_path = $this->router->extract_clean_path( $path, array( $global_url, $bd_url, $in_url ) );
+
+		$url_global = add_query_arg( 'grr_set_country', 'GLOBAL', rtrim( $global_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query );
+		$url_bd     = add_query_arg( 'grr_set_country', 'BD', rtrim( $bd_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query );
+		$url_in     = add_query_arg( 'grr_set_country', 'IN', rtrim( $in_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query );
+		$url_reset  = add_query_arg( 'grr_set_country', 'reset', $this->router->get_current_url() );
+
+		$current_blog_id = get_current_blog_id();
+		$style           = strtolower( sanitize_key( $atts['style'] ) );
+
+		ob_start();
+		if ( 'buttons' === $style || 'flags' === $style ) :
+			?>
+			<div class="grr-switcher-buttons">
+				<span class="grr-switcher-label">🌐 <?php esc_html_e( 'Select Region:', 'geo-regional-router' ); ?></span>
+				<a href="<?php echo esc_url( $url_global ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_global_id ? 'is-active' : ''; ?>">
+					🌐 Global
+				</a>
+				<a href="<?php echo esc_url( $url_bd ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_bd_id ? 'is-active' : ''; ?>">
+					🇧🇩 Bangladesh
+				</a>
+				<a href="<?php echo esc_url( $url_in ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_in_id ? 'is-active' : ''; ?>">
+					🇮🇳 India
+				</a>
+			</div>
+		<?php else : ?>
+			<div class="grr-frontend-switcher">
+				<span class="grr-switcher-label">🌐 <?php esc_html_e( 'Region / Language:', 'geo-regional-router' ); ?></span>
+				<select onchange="if (this.value) window.location.href=this.value;" class="grr-switcher-select">
+					<option value="<?php echo esc_url( $url_global ); ?>" <?php selected( $current_blog_id, $site_global_id ); ?>>🌐 Global / International</option>
+					<option value="<?php echo esc_url( $url_bd ); ?>" <?php selected( $current_blog_id, $site_bd_id ); ?>>🇧🇩 Bangladesh (BD)</option>
+					<option value="<?php echo esc_url( $url_in ); ?>" <?php selected( $current_blog_id, $site_in_id ); ?>>🇮🇳 India (IN)</option>
+					<option value="<?php echo esc_url( $url_reset ); ?>">🔄 Reset to Auto-Detect IP</option>
+				</select>
+			</div>
+		<?php endif; ?>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Output Floating Widget in footer if enabled in options.
+	 */
+	public function render_floating_widget(): void {
+		$options = get_site_option( 'grr_options', array() );
+		if ( ! empty( $options['enable_frontend_switcher'] ) && ! empty( $options['enable_floating_widget'] ) ) {
+			echo '<div class="grr-floating-widget-wrapper">';
+			echo $this->render_frontend_switcher_shortcode( array( 'style' => 'dropdown' ) );
+			echo '</div>';
+		}
+	}
+
+	/**
+	 * Enqueue frontend CSS for switcher.
+	 */
+	public function enqueue_frontend_assets(): void {
+		$options = get_site_option( 'grr_options', array() );
+		if ( ! empty( $options['enable_frontend_switcher'] ) ) {
+			wp_enqueue_style( 'grr-frontend-css', GRR_PLUGIN_URL . 'assets/admin.css', array(), GRR_VERSION );
+		}
 	}
 
 	/**
@@ -129,20 +304,8 @@ final class Plugin {
 			return;
 		}
 
-		wp_enqueue_style(
-			'grr-admin-css',
-			GRR_PLUGIN_URL . 'assets/admin.css',
-			array(),
-			GRR_VERSION
-		);
-
-		wp_enqueue_script(
-			'grr-admin-js',
-			GRR_PLUGIN_URL . 'assets/admin.js',
-			array( 'jquery' ),
-			GRR_VERSION,
-			true
-		);
+		wp_enqueue_style( 'grr-admin-css', GRR_PLUGIN_URL . 'assets/admin.css', array(), GRR_VERSION );
+		wp_enqueue_script( 'grr-admin-js', GRR_PLUGIN_URL . 'assets/admin.js', array( 'jquery' ), GRR_VERSION, true );
 
 		wp_localize_script(
 			'grr-admin-js',
@@ -152,6 +315,32 @@ final class Plugin {
 				'nonce'   => wp_create_nonce( 'grr_diagnostics_nonce' ),
 			)
 		);
+	}
+
+	/**
+	 * Cron job handler for downloading latest MaxMind database.
+	 */
+	public function run_maxmind_cron_update(): void {
+		$options     = get_site_option( 'grr_options', array() );
+		$license_key = trim( (string) ( $options['maxmind_license_key'] ?? '' ) );
+		$db_path     = trim( (string) ( $options['maxmind_db_path'] ?? '' ) );
+
+		if ( empty( $license_key ) || empty( $db_path ) ) {
+			return;
+		}
+
+		$download_url = sprintf(
+			'https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=%s&suffix=tar.gz',
+			urlencode( $license_key )
+		);
+
+		$response = wp_remote_get( $download_url, array( 'timeout' => 60 ) );
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			$this->logger->log( 'MaxMind Cron update failed: Unable to download database.' );
+			return;
+		}
+
+		$this->logger->log( 'MaxMind Cron update completed successfully.' );
 	}
 
 	/**
