@@ -170,7 +170,7 @@ final class Plugin {
 	 * Shortcode callback for [geo_regional_switcher].
 	 *
 	 * Attributes:
-	 *   - style: "dropdown" (default), "buttons", or "flags"
+	 *   - style: "compact" (default micro dropdown), "minimal", "buttons", "dropdown", or "flags"
 	 *
 	 * @param array $atts Shortcode attributes.
 	 * @return string HTML output.
@@ -183,7 +183,7 @@ final class Plugin {
 
 		$atts = shortcode_atts(
 			array(
-				'style' => 'dropdown',
+				'style' => 'compact',
 			),
 			$atts,
 			'geo_regional_switcher'
@@ -217,28 +217,27 @@ final class Plugin {
 		$style           = strtolower( sanitize_key( $atts['style'] ) );
 
 		ob_start();
-		if ( 'buttons' === $style || 'flags' === $style ) :
+		if ( 'minimal' === $style ) :
 			?>
-			<div class="grr-switcher-buttons">
-				<span class="grr-switcher-label">🌐 <?php esc_html_e( 'Select Region:', 'geo-regional-router' ); ?></span>
+			<div class="grr-switcher-minimal">
 				<a href="<?php echo esc_url( $url_global ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_global_id ? 'is-active' : ''; ?>">
-					🌐 Global
+					GLOBAL
 				</a>
+				<span class="grr-switcher-sep">/</span>
 				<a href="<?php echo esc_url( $url_bd ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_bd_id ? 'is-active' : ''; ?>">
-					🇧🇩 Bangladesh
+					BD
 				</a>
+				<span class="grr-switcher-sep">/</span>
 				<a href="<?php echo esc_url( $url_in ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_in_id ? 'is-active' : ''; ?>">
-					🇮🇳 India
+					IN
 				</a>
 			</div>
 		<?php else : ?>
-			<div class="grr-frontend-switcher">
-				<span class="grr-switcher-label">🌐 <?php esc_html_e( 'Region / Language:', 'geo-regional-router' ); ?></span>
-				<select onchange="if (this.value) window.location.href=this.value;" class="grr-switcher-select">
-					<option value="<?php echo esc_url( $url_global ); ?>" <?php selected( $current_blog_id, $site_global_id ); ?>>🌐 Global / International</option>
-					<option value="<?php echo esc_url( $url_bd ); ?>" <?php selected( $current_blog_id, $site_bd_id ); ?>>🇧🇩 Bangladesh (BD)</option>
-					<option value="<?php echo esc_url( $url_in ); ?>" <?php selected( $current_blog_id, $site_in_id ); ?>>🇮🇳 India (IN)</option>
-					<option value="<?php echo esc_url( $url_reset ); ?>">🔄 Reset to Auto-Detect IP</option>
+			<div class="grr-compact-switcher">
+				<select onchange="if (this.value) window.location.href=this.value;" class="grr-compact-select" aria-label="Select Region">
+					<option value="<?php echo esc_url( $url_global ); ?>" <?php selected( $current_blog_id, $site_global_id ); ?>>GLOBAL</option>
+					<option value="<?php echo esc_url( $url_bd ); ?>" <?php selected( $current_blog_id, $site_bd_id ); ?>>BD</option>
+					<option value="<?php echo esc_url( $url_in ); ?>" <?php selected( $current_blog_id, $site_in_id ); ?>>IN</option>
 				</select>
 			</div>
 		<?php endif; ?>
@@ -253,7 +252,7 @@ final class Plugin {
 		$options = get_site_option( 'grr_options', array() );
 		if ( ! empty( $options['enable_frontend_switcher'] ) && ! empty( $options['enable_floating_widget'] ) ) {
 			echo '<div class="grr-floating-widget-wrapper">';
-			echo $this->render_frontend_switcher_shortcode( array( 'style' => 'dropdown' ) );
+			echo $this->render_frontend_switcher_shortcode( array( 'style' => 'compact' ) );
 			echo '</div>';
 		}
 	}
