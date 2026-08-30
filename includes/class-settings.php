@@ -105,14 +105,14 @@ class Settings {
 									<th scope="row"><?php esc_html_e( 'Redirect Status Code', 'geo-regional-router' ); ?></th>
 									<td>
 										<select name="redirect_status">
-											<option value="302" <?php selected( 302, $options['redirect_status'] ?? 302 ); ?>>302 Found (Temporary - Recommended for Testing)</option>
+											<option value="302" <?php selected( 302, $options['redirect_status'] ?? 302 ); ?>>302 Found (Temporary - Recommended for Live & GeoIP)</option>
 											<option value="307" <?php selected( 307, $options['redirect_status'] ?? 302 ); ?>>307 Temporary Redirect</option>
-											<option value="301" <?php selected( 301, $options['redirect_status'] ?? 302 ); ?>>301 Moved Permanently</option>
+											<option value="301" <?php selected( 301, $options['redirect_status'] ?? 302 ); ?>>301 Moved Permanently (Not Recommended for GeoIP)</option>
 											<option value="308" <?php selected( 308, $options['redirect_status'] ?? 302 ); ?>>308 Permanent Redirect</option>
 										</select>
 										<p class="description">
-											<strong><?php esc_html_e( 'SEO Warning:', 'geo-regional-router' ); ?></strong>
-											<?php esc_html_e( 'Use 302 or 307 temporary redirects during testing. Only enable 301/308 permanent redirects once your configuration is thoroughly verified.', 'geo-regional-router' ); ?>
+											<strong><?php esc_html_e( 'SEO & GeoIP Best Practice:', 'geo-regional-router' ); ?></strong>
+											<?php esc_html_e( 'Keep status set to 302 or 307. 301 permanent redirects cause browsers and Googlebot to cache regional URLs permanently, breaking location switching and search engine indexing.', 'geo-regional-router' ); ?>
 										</p>
 									</td>
 								</tr>

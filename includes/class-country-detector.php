@@ -136,15 +136,13 @@ class Country_Detector {
 		$detected = null;
 
 		// Priority 3: Cloudflare CF-IPCountry
-		if ( ! empty( $options['country_source_cf'] ) && $is_trusted_proxy ) {
-			if ( ! empty( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) {
-				$cf_country = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) );
-				if ( 'XX' !== $cf_country && 'T1' !== $cf_country && preg_match( '/^[A-Z]{2}$/', $cf_country ) ) {
-					$detected = array(
-						'country' => $cf_country,
-						'source'  => 'Cloudflare (CF-IPCountry)',
-					);
-				}
+		if ( ! empty( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) {
+			$cf_country = strtoupper( sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) );
+			if ( 'XX' !== $cf_country && 'T1' !== $cf_country && preg_match( '/^[A-Z]{2}$/', $cf_country ) ) {
+				$detected = array(
+					'country' => $cf_country,
+					'source'  => 'Cloudflare (CF-IPCountry)',
+				);
 			}
 		}
 
@@ -170,6 +168,13 @@ class Country_Detector {
 		// Priority 5: MaxMind GeoIP Local Database
 		if ( null === $detected ) {
 			$maxmind_db = trim( (string) ( $options['maxmind_db_path'] ?? '' ) );
+			if ( empty( $maxmind_db ) || ! file_exists( $maxmind_db ) ) {
+				$bundled_path = plugin_dir_path( dirname( __FILE__ ) ) . 'assets/GeoLite2/GeoLite2-Country.mmdb';
+				if ( file_exists( $bundled_path ) ) {
+					$maxmind_db = $bundled_path;
+				}
+			}
+
 			if ( ! empty( $maxmind_db ) && file_exists( $maxmind_db ) && is_readable( $maxmind_db ) ) {
 				$maxmind_country = $this->lookup_maxmind_country( $client_ip, $maxmind_db );
 				if ( $maxmind_country && preg_match( '/^[A-Z]{2}$/', $maxmind_country ) ) {
@@ -189,18 +194,42 @@ class Country_Detector {
 			);
 		}
 
-		// Cache in memory
-		wp_cache_set( $cache_key, $detected, 'grr_geoip', 3600 );
+		// Cache in memory only if valid country
+		if ( 'UNKNOWN' !== $detected['country'] ) {
+			wp_cache_set( $cache_key, $detected, 'grr_geoip', 3600 );
+		}
 
 		return $detected;
 	}
 
 	/**
-	 * Get visitor IP address safely.
+	 * Get visitor IP address safely (supports Cloudflare and reverse proxies).
 	 *
 	 * @return string
 	 */
 	public function get_client_ip(): string {
+		if ( ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) {
+			$ip = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_CONNECTING_IP'] ) );
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				return $ip;
+			}
+		}
+
+		if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+			$ips       = explode( ',', $_SERVER['HTTP_X_FORWARDED_FOR'] );
+			$client_ip = trim( wp_unslash( $ips[0] ) );
+			if ( filter_var( $client_ip, FILTER_VALIDATE_IP ) ) {
+				return sanitize_text_field( $client_ip );
+			}
+		}
+
+		if ( ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) {
+			$ip = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_REAL_IP'] ) );
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				return $ip;
+			}
+		}
+
 		$ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 		return sanitize_text_field( wp_unslash( $ip ) );
 	}
@@ -283,7 +312,7 @@ class Country_Detector {
 	}
 
 	/**
-	 * Simple MaxMind MMDB binary reader fallback lookup for Country ISOCode.
+	 * Native pure-PHP MaxMind MMDB binary reader for Country ISO Code.
 	 *
 	 * @param string $ip IP Address.
 	 * @param string $db_path Absolute path to .mmdb file.
@@ -294,11 +323,225 @@ class Country_Detector {
 			return null;
 		}
 
-		if ( function_exists( 'geoip_country_code_by_name' ) ) {
-			$code = @geoip_country_code_by_name( $ip );
-			return $code ? strtoupper( $code ) : null;
+		$handle = @fopen( $db_path, 'rb' );
+		if ( ! $handle ) {
+			return null;
 		}
 
-		return null;
+		$file_size = filesize( $db_path );
+		$read_len  = min( 20480, $file_size );
+		fseek( $handle, $file_size - $read_len );
+		$buf = fread( $handle, $read_len );
+
+		$marker = "\xab\xcd\xefMaxMind.com";
+		$pos    = strrpos( $buf, $marker );
+		if ( false === $pos ) {
+			fclose( $handle );
+			return null;
+		}
+
+		$meta_offset = $file_size - $read_len + $pos + strlen( $marker );
+		fseek( $handle, $meta_offset );
+
+		$data_section_offset = 0;
+		$meta_res            = $this->mmdb_decode_data( $handle, $meta_offset, $data_section_offset );
+		$meta                = $meta_res['value'] ?? array();
+
+		$node_count          = $meta['node_count'] ?? 0;
+		$record_size         = $meta['record_size'] ?? 24;
+		$search_tree_size    = ( $node_count * $record_size * 2 ) / 8;
+		$data_section_offset = $search_tree_size + 16;
+
+		$packed = @inet_pton( $ip );
+		if ( false === $packed ) {
+			fclose( $handle );
+			return null;
+		}
+
+		if ( 4 === strlen( $packed ) ) {
+			$packed = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff" . $packed;
+		}
+
+		$node_num   = 0;
+		$total_bits = strlen( $packed ) * 8;
+		$result     = null;
+
+		for ( $i = 0; $i < $total_bits; $i++ ) {
+			$byte_idx = (int) ( $i / 8 );
+			$bit_idx  = 7 - ( $i % 8 );
+			$bit      = ( ord( $packed[ $byte_idx ] ) >> $bit_idx ) & 1;
+
+			list( $left, $right ) = $this->mmdb_read_node( $handle, $node_num, $record_size );
+			$next = $bit ? $right : $left;
+
+			if ( $next >= $node_count ) {
+				if ( $next > $node_count ) {
+					$data_offset = $data_section_offset + ( $next - $node_count - 16 );
+					$res         = $this->mmdb_decode_data( $handle, $data_offset, $data_section_offset );
+					$data        = $res['value'] ?? null;
+					if ( is_array( $data ) ) {
+						if ( isset( $data['country']['iso_code'] ) ) {
+							$result = strtoupper( (string) $data['country']['iso_code'] );
+						} elseif ( isset( $data['registered_country']['iso_code'] ) ) {
+							$result = strtoupper( (string) $data['registered_country']['iso_code'] );
+						} elseif ( isset( $data['represented_country']['iso_code'] ) ) {
+							$result = strtoupper( (string) $data['represented_country']['iso_code'] );
+						} elseif ( isset( $data['continent']['code'] ) ) {
+							$result = strtoupper( (string) $data['continent']['code'] );
+						}
+					}
+				}
+				break;
+			}
+			$node_num = $next;
+		}
+
+		fclose( $handle );
+		return $result;
+	}
+
+	/**
+	 * Decode MMDB data structures.
+	 */
+	private function mmdb_decode_data( $handle, int $offset, int $data_section_offset ): array {
+		fseek( $handle, $offset );
+		$char = fgetc( $handle );
+		if ( false === $char ) {
+			return array( 'value' => null, 'offset' => $offset );
+		}
+		$ctrl   = ord( $char );
+		$offset++;
+
+		$type = $ctrl >> 5;
+		$size = $ctrl & 0x1f;
+
+		if ( 1 === $type ) {
+			$p_size = ( $ctrl >> 3 ) & 0x03;
+			if ( 0 === $p_size ) {
+				$b1 = ord( fgetc( $handle ) );
+				$offset++;
+				$pointer_val = ( ( $ctrl & 0x07 ) << 8 ) + $b1;
+			} elseif ( 1 === $p_size ) {
+				$b1 = ord( fgetc( $handle ) );
+				$b2 = ord( fgetc( $handle ) );
+				$offset += 2;
+				$pointer_val = ( ( $ctrl & 0x07 ) << 16 ) + ( $b1 << 8 ) + $b2 + 2048;
+			} elseif ( 2 === $p_size ) {
+				$b1 = ord( fgetc( $handle ) );
+				$b2 = ord( fgetc( $handle ) );
+				$b3 = ord( fgetc( $handle ) );
+				$offset += 3;
+				$pointer_val = ( ( $ctrl & 0x07 ) << 24 ) + ( $b1 << 16 ) + ( $b2 << 8 ) + $b3 + 526336;
+			} else {
+				$bytes       = fread( $handle, 4 );
+				$offset     += 4;
+				$unpacked    = unpack( 'N', $bytes );
+				$pointer_val = $unpacked[1] ?? 0;
+			}
+			$target = $data_section_offset + $pointer_val;
+			$res    = $this->mmdb_decode_data( $handle, $target, $data_section_offset );
+			return array( 'value' => $res['value'], 'offset' => $offset );
+		}
+
+		if ( 0 === $type ) {
+			$ext_type = ord( fgetc( $handle ) );
+			$offset++;
+			$type = $ext_type + 7;
+		}
+
+		if ( $size >= 29 ) {
+			$extra_bytes = $size - 28;
+			$bytes       = fread( $handle, $extra_bytes );
+			$offset     += $extra_bytes;
+			if ( 1 === $extra_bytes ) {
+				$size = ord( $bytes ) + 29;
+			} elseif ( 2 === $extra_bytes ) {
+				$unpacked = unpack( 'n', $bytes );
+				$size     = ( $unpacked[1] ?? 0 ) + 285;
+			} elseif ( 3 === $extra_bytes ) {
+				$unpacked = unpack( 'N', "\x00" . $bytes );
+				$size     = ( $unpacked[1] ?? 0 ) + 65821;
+			}
+		}
+
+		switch ( $type ) {
+			case 2:
+				$val = $size > 0 ? fread( $handle, $size ) : '';
+				$offset += $size;
+				return array( 'value' => $val, 'offset' => $offset );
+			case 4:
+				$val = $size > 0 ? fread( $handle, $size ) : '';
+				$offset += $size;
+				return array( 'value' => $val, 'offset' => $offset );
+			case 5:
+			case 6:
+			case 8:
+			case 9:
+			case 10:
+				$val = 0;
+				if ( $size > 0 ) {
+					$bytes   = fread( $handle, $size );
+					$offset += $size;
+					for ( $i = 0; $i < $size; $i++ ) {
+						$val = ( $val << 8 ) + ord( $bytes[ $i ] );
+					}
+				}
+				return array( 'value' => $val, 'offset' => $offset );
+			case 7:
+				$map = array();
+				for ( $i = 0; $i < $size; $i++ ) {
+					$k_res  = $this->mmdb_decode_data( $handle, $offset, $data_section_offset );
+					$offset = $k_res['offset'];
+					$v_res  = $this->mmdb_decode_data( $handle, $offset, $data_section_offset );
+					$offset = $v_res['offset'];
+					if ( null !== $k_res['value'] ) {
+						$map[ $k_res['value'] ] = $v_res['value'];
+					}
+				}
+				return array( 'value' => $map, 'offset' => $offset );
+			case 11:
+				$arr = array();
+				for ( $i = 0; $i < $size; $i++ ) {
+					$item_res = $this->mmdb_decode_data( $handle, $offset, $data_section_offset );
+					$offset   = $item_res['offset'];
+					$arr[]    = $item_res['value'];
+				}
+				return array( 'value' => $arr, 'offset' => $offset );
+			case 14:
+				return array( 'value' => ( 0 !== $size ), 'offset' => $offset );
+			default:
+				if ( $size > 0 ) {
+					fread( $handle, $size );
+					$offset += $size;
+				}
+				return array( 'value' => null, 'offset' => $offset );
+		}
+	}
+
+	/**
+	 * Read single node from MMDB search tree.
+	 */
+	private function mmdb_read_node( $handle, int $node_num, int $record_size ): array {
+		if ( 24 === $record_size ) {
+			fseek( $handle, $node_num * 6 );
+			$bytes = fread( $handle, 6 );
+			$left  = ( ord( $bytes[0] ) << 16 ) | ( ord( $bytes[1] ) << 8 ) | ord( $bytes[2] );
+			$right = ( ord( $bytes[3] ) << 16 ) | ( ord( $bytes[4] ) << 8 ) | ord( $bytes[5] );
+			return array( $left, $right );
+		} elseif ( 28 === $record_size ) {
+			fseek( $handle, $node_num * 7 );
+			$bytes  = fread( $handle, 7 );
+			$middle = ord( $bytes[3] );
+			$left   = ( ( ( $middle >> 4 ) & 0x0f ) << 24 ) | ( ord( $bytes[0] ) << 16 ) | ( ord( $bytes[1] ) << 8 ) | ord( $bytes[2] );
+			$right  = ( ( $middle & 0x0f ) << 24 ) | ( ord( $bytes[4] ) << 16 ) | ( ord( $bytes[5] ) << 8 ) | ord( $bytes[6] );
+			return array( $left, $right );
+		} elseif ( 32 === $record_size ) {
+			fseek( $handle, $node_num * 8 );
+			$bytes = fread( $handle, 8 );
+			$left  = unpack( 'N', substr( $bytes, 0, 4 ) )[1];
+			$right = unpack( 'N', substr( $bytes, 4, 4 ) )[1];
+			return array( $left, $right );
+		}
+		return array( 0, 0 );
 	}
 }

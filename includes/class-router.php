@@ -37,9 +37,17 @@ class Router {
 	}
 
 	/**
+	 * Flag to prevent double execution across multiple hooks.
+	 *
+	 * @var bool
+	 */
+	private bool $has_executed = false;
+
+	/**
 	 * Register router hooks.
 	 */
 	public function init(): void {
+		add_action( 'init', array( $this, 'process_routing' ), 1 );
 		add_action( 'template_redirect', array( $this, 'process_routing' ), 1 );
 		add_action( 'wp_head', array( $this, 'output_hreflang_tags' ), 2 );
 		add_action( 'send_headers', array( $this, 'output_edge_cache_headers' ) );
@@ -97,6 +105,10 @@ class Router {
 	 * Main routing execution callback.
 	 */
 	public function process_routing(): void {
+		if ( $this->has_executed ) {
+			return;
+		}
+
 		$options = get_site_option( 'grr_options', array() );
 
 		if ( empty( $options['enabled'] ) ) {
@@ -120,6 +132,8 @@ class Router {
 			$this->logger->log( 'Skipping routing: ' . $skip_reason );
 			return;
 		}
+
+		$this->has_executed = true;
 
 		// Detect country
 		$country_data = $this->country_detector->detect_country();
@@ -178,6 +192,13 @@ class Router {
 		$this->handle_cookie_persistence( $country, $options );
 
 		$this->logger->log( sprintf( 'Redirecting [%s] visitor to %s (Status %d)', $country, $target_url, $status_code ) );
+
+		if ( ! headers_sent() ) {
+			header( 'Cache-Control: no-cache, no-store, must-revalidate, max-age=0', true );
+			header( 'Pragma: no-cache', true );
+			header( 'Expires: 0', true );
+			header( 'Vary: CF-IPCountry, Accept-Language, Cookie', false );
+		}
 
 		// Perform safe redirect
 		add_filter( 'allowed_redirect_hosts', array( $this, 'allow_multisite_hosts' ) );
