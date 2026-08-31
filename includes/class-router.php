@@ -47,19 +47,18 @@ class Router {
 	 * Register router hooks.
 	 */
 	public function init(): void {
-		add_action( 'init', array( $this, 'process_routing' ), 1 );
 		add_action( 'template_redirect', array( $this, 'process_routing' ), 1 );
 		add_action( 'wp_head', array( $this, 'output_hreflang_tags' ), 2 );
 		add_action( 'send_headers', array( $this, 'output_edge_cache_headers' ) );
 	}
 
 	/**
-	 * Output Edge Cache Vary headers if enabled.
+	 * Output Edge Cache Vary headers if enabled or when routing is active.
 	 */
 	public function output_edge_cache_headers(): void {
 		$options = get_site_option( 'grr_options', array() );
-		if ( ! empty( $options['enable_edge_headers'] ) && ! headers_sent() ) {
-			header( 'Vary: CF-IPCountry, Accept-Language', false );
+		if ( ! empty( $options['enabled'] ) && ! headers_sent() ) {
+			header( 'Vary: CF-IPCountry, Accept-Language, Cookie', false );
 		}
 	}
 
