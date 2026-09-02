@@ -281,11 +281,45 @@ class Settings {
 								<tr>
 									<th scope="row"><?php esc_html_e( 'MaxMind Database Path & License', 'geo-regional-router' ); ?></th>
 									<td>
+										<?php
+										$wc_detected_db = '';
+										if ( class_exists( 'WC_Geolocation' ) && method_exists( 'WC_Geolocation', 'get_local_database_path' ) ) {
+											$wc_path = \WC_Geolocation::get_local_database_path();
+											if ( ! empty( $wc_path ) && file_exists( $wc_path ) && is_readable( $wc_path ) ) {
+												$wc_detected_db = $wc_path;
+											}
+										}
+										if ( empty( $wc_detected_db ) ) {
+											$upload_dir = wp_upload_dir();
+											$wc_uploads = trailingslashit( $upload_dir['basedir'] ) . 'woocommerce_uploads/';
+											if ( is_dir( $wc_uploads ) ) {
+												$glob_matches = glob( $wc_uploads . '*GeoLite2-Country.mmdb' );
+												if ( ! empty( $glob_matches ) && file_exists( $glob_matches[0] ) && is_readable( $glob_matches[0] ) ) {
+													$wc_detected_db = $glob_matches[0];
+												}
+											}
+										}
+										?>
 										<input type="text" name="maxmind_db_path" value="<?php echo esc_attr( $options['maxmind_db_path'] ?? '' ); ?>" class="large-text" placeholder="/path/to/GeoLite2-Country.mmdb" />
-										<p class="description"><?php esc_html_e( 'Absolute path to local MaxMind GeoLite2-Country.mmdb binary database file.', 'geo-regional-router' ); ?></p>
+										<p class="description">
+											<?php esc_html_e( 'Absolute path to local MaxMind GeoLite2-Country.mmdb binary database file.', 'geo-regional-router' ); ?>
+										</p>
+										<?php if ( ! empty( $wc_detected_db ) ) : ?>
+											<p class="description" style="color: #008a20; margin-top: 6px; font-weight: 500;">
+												✓ <?php esc_html_e( 'WooCommerce MaxMind Detected:', 'geo-regional-router' ); ?>
+												<span style="color: #444; font-weight: normal;"><?php esc_html_e( 'If left blank, Geo Regional Router will automatically use WooCommerce\'s database at', 'geo-regional-router' ); ?></span>
+												<code><?php echo esc_html( $wc_detected_db ); ?></code>
+												<span style="color: #666; font-size: 12px;"><?php esc_html_e( '(automatically updated weekly by WooCommerce).', 'geo-regional-router' ); ?></span>
+											</p>
+										<?php else : ?>
+											<p class="description" style="margin-top: 6px; color: #666;">
+												💡 <em><?php esc_html_e( 'Tip: If left blank, the plugin will automatically discover and use WooCommerce\'s MaxMind database if installed, or fall back to the bundled database.', 'geo-regional-router' ); ?></em>
+											</p>
+										<?php endif; ?>
 										<br />
 										<label><strong><?php esc_html_e( 'MaxMind License Key (For Auto-Updates):', 'geo-regional-router' ); ?></strong></label><br />
 										<input type="password" name="maxmind_license_key" value="<?php echo esc_attr( $options['maxmind_license_key'] ?? '' ); ?>" class="regular-text" placeholder="License key for weekly updates" />
+										<p class="description"><?php esc_html_e( 'Not needed if WooCommerce is already handling your MaxMind updates.', 'geo-regional-router' ); ?></p>
 									</td>
 								</tr>
 								<tr>
@@ -338,41 +372,14 @@ class Settings {
 									</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php esc_html_e( 'Frontend Regional Switcher', 'geo-regional-router' ); ?></th>
+									<th scope="row"><?php esc_html_e( 'Country Switcher Elements', 'geo-regional-router' ); ?></th>
 									<td>
 										<label>
 											<input type="checkbox" name="enable_frontend_switcher" value="1" <?php checked( 1, $options['enable_frontend_switcher'] ?? 1 ); ?> />
-											<?php esc_html_e( 'Enable [geo_regional_switcher] shortcode for visitors', 'geo-regional-router' ); ?>
-										</label><br />
-										<label>
-											<input type="checkbox" name="enable_floating_widget" value="1" <?php checked( 1, $options['enable_floating_widget'] ?? 0 ); ?> />
-											<?php esc_html_e( 'Automatically render floating regional switcher in bottom-right corner of frontend', 'geo-regional-router' ); ?>
+											<strong><?php esc_html_e( 'Enable Regional Store Switcher (Widgets, Blocks & Shortcodes)', 'geo-regional-router' ); ?></strong>
 										</label>
-										<hr style="margin: 15px 0; border: 0; border-top: 1px solid #e0e0e0;" />
-										<p>
-											<label>
-												<input type="checkbox" name="enable_footer_switcher" value="1" <?php checked( 1, $options['enable_footer_switcher'] ?? 0 ); ?> />
-												<strong><?php esc_html_e( 'Display Country Switcher in website footer (wp_footer)', 'geo-regional-router' ); ?></strong>
-											</label>
-										</p>
-										<p>
-											<label><?php esc_html_e( 'Footer Switcher Style:', 'geo-regional-router' ); ?></label><br />
-											<select name="footer_switcher_style">
-												<option value="inline" <?php selected( 'inline', $options['footer_switcher_style'] ?? 'inline' ); ?>><?php esc_html_e( 'Inline Links with Flags (GLOBAL | 🇧🇩 BD | 🇮🇳 IN)', 'geo-regional-router' ); ?></option>
-												<option value="buttons" <?php selected( 'buttons', $options['footer_switcher_style'] ?? 'inline' ); ?>><?php esc_html_e( 'Pill Buttons Style', 'geo-regional-router' ); ?></option>
-												<option value="compact" <?php selected( 'compact', $options['footer_switcher_style'] ?? 'inline' ); ?>><?php esc_html_e( 'Micro Dropdown Select', 'geo-regional-router' ); ?></option>
-											</select>
-										</p>
-										<p>
-											<label><?php esc_html_e( 'Footer Switcher Alignment:', 'geo-regional-router' ); ?></label><br />
-											<select name="footer_switcher_position">
-												<option value="center" <?php selected( 'center', $options['footer_switcher_position'] ?? 'center' ); ?>><?php esc_html_e( 'Centered', 'geo-regional-router' ); ?></option>
-												<option value="left" <?php selected( 'left', $options['footer_switcher_position'] ?? 'center' ); ?>><?php esc_html_e( 'Left-Aligned', 'geo-regional-router' ); ?></option>
-												<option value="right" <?php selected( 'right', $options['footer_switcher_position'] ?? 'center' ); ?>><?php esc_html_e( 'Right-Aligned', 'geo-regional-router' ); ?></option>
-											</select>
-										</p>
-										<p class="description">
-											<?php esc_html_e( 'Shortcode examples: [geo_regional_switcher], [geo_regional_switcher style="buttons"], [geo_regional_switcher style="inline"]', 'geo-regional-router' ); ?>
+										<p class="description" style="margin: 4px 0 0 24px;">
+											<?php esc_html_e( 'Enables the "Regional Store Switcher" block in the Gutenberg Site Editor (under Widgets in Twenty Twenty-Five and Block themes), the classic widget (Appearance > Widgets), and the [geo_regional_switcher] shortcode.', 'geo-regional-router' ); ?>
 										</p>
 									</td>
 								</tr>
@@ -475,11 +482,7 @@ class Settings {
 			$existing['enable_hreflang']            = isset( $_POST['enable_hreflang'] ) ? 1 : 0;
 			$existing['enable_edge_headers']        = isset( $_POST['enable_edge_headers'] ) ? 1 : 0;
 			$existing['enable_admin_bar']           = isset( $_POST['enable_admin_bar'] ) ? 1 : 0;
-			$existing['enable_frontend_switcher']   = isset( $_POST['enable_frontend_switcher'] ) ? 1 : 0;
-			$existing['enable_floating_widget']     = isset( $_POST['enable_floating_widget'] ) ? 1 : 0;
-			$existing['enable_footer_switcher']     = isset( $_POST['enable_footer_switcher'] ) ? 1 : 0;
-			$existing['footer_switcher_style']      = isset( $_POST['footer_switcher_style'] ) ? sanitize_key( $_POST['footer_switcher_style'] ) : 'inline';
-			$existing['footer_switcher_position']   = isset( $_POST['footer_switcher_position'] ) ? sanitize_key( $_POST['footer_switcher_position'] ) : 'center';
+			$existing['enable_frontend_switcher']    = isset( $_POST['enable_frontend_switcher'] ) ? 1 : 0;
 			$existing['prompt_style']               = isset( $_POST['prompt_style'] ) ? sanitize_key( $_POST['prompt_style'] ) : 'card';
 			$existing['prompt_delay']               = isset( $_POST['prompt_delay'] ) ? max( 0, (float) $_POST['prompt_delay'] ) : 1.5;
 			$existing['prompt_auto_hide']           = isset( $_POST['prompt_auto_hide'] ) ? max( 0, (int) $_POST['prompt_auto_hide'] ) : 0;

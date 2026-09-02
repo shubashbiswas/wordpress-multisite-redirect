@@ -1,37 +1,48 @@
 /**
  * Geo Regional Router - Client-Side Geo-Prompt Styles
- * Modern, responsive, accessible styles for country detection prompts.
+ * Modern, responsive, accessible frosted glassmorphism styles.
  */
 
 :root {
 	--grr-primary: #2563eb;
 	--grr-primary-hover: #1d4ed8;
-	--grr-bg: #ffffff;
-	--grr-text: #1e293b;
-	--grr-text-muted: #64748b;
-	--grr-border: rgba(226, 232, 240, 0.8);
-	--grr-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
-	--grr-radius: 14px;
+	--grr-primary-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+	--grr-primary-gradient-hover: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%);
+	--grr-bg: rgba(255, 255, 255, 0.92);
+	--grr-bg-secondary: rgba(241, 245, 249, 0.85);
+	--grr-text: #0f172a;
+	--grr-text-muted: #475569;
+	--grr-border: rgba(226, 232, 240, 0.85);
+	--grr-border-subtle: rgba(226, 232, 240, 0.5);
+	--grr-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.06), 0 0 1px 1px rgba(15, 23, 42, 0.03);
+	--grr-radius: 18px;
+	--grr-radius-sm: 10px;
 	--grr-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	--grr-backdrop: blur(20px) saturate(190%);
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--grr-bg: #0f172a;
+		--grr-bg: rgba(15, 23, 42, 0.88);
+		--grr-bg-secondary: rgba(30, 41, 59, 0.8);
 		--grr-text: #f8fafc;
 		--grr-text-muted: #94a3b8;
-		--grr-border: rgba(51, 65, 85, 0.6);
-		--grr-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+		--grr-border: rgba(51, 65, 85, 0.7);
+		--grr-border-subtle: rgba(51, 65, 85, 0.4);
+		--grr-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 10px 20px -8px rgba(0, 0, 0, 0.3), 0 0 1px 1px rgba(255, 255, 255, 0.08);
 	}
 }
 
-/* Base Wrapper */
+/* ==========================================================================
+   Base Wrapper
+   ========================================================================== */
 .grr-prompt-wrapper {
 	font-family: var(--grr-font);
 	box-sizing: border-box;
 	z-index: 999999;
 	color: var(--grr-text);
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 .grr-prompt-wrapper * {
@@ -39,7 +50,7 @@
 }
 
 /* ==========================================================================
-   Style 1: Floating Card (Bottom-Right)
+   Style 1: Floating Card (Bottom-Right Corner)
    ========================================================================== */
 .grr-prompt-wrapper.grr-style-card {
 	position: fixed;
@@ -48,12 +59,25 @@
 	max-width: 420px;
 	width: calc(100% - 48px);
 	background: var(--grr-bg);
+	backdrop-filter: var(--grr-backdrop);
+	-webkit-backdrop-filter: var(--grr-backdrop);
 	border: 1px solid var(--grr-border);
 	border-radius: var(--grr-radius);
 	box-shadow: var(--grr-shadow);
-	padding: 22px;
-	animation: grrSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-	backdrop-filter: blur(12px);
+	padding: 24px;
+	animation: grrSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	overflow: hidden;
+}
+
+/* Top Accent Highlight for Floating Card */
+.grr-prompt-wrapper.grr-style-card::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: linear-gradient(90deg, #38bdf8 0%, #2563eb 50%, #6366f1 100%);
 }
 
 /* ==========================================================================
@@ -66,19 +90,30 @@
 	right: 0;
 	width: 100%;
 	background: var(--grr-bg);
+	backdrop-filter: var(--grr-backdrop);
+	-webkit-backdrop-filter: var(--grr-backdrop);
 	border-bottom: 1px solid var(--grr-border);
-	box-shadow: var(--grr-shadow);
+	box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
 	padding: 16px 24px;
-	animation: grrSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	animation: grrSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .grr-style-banner .grr-prompt-inner {
-	max-width: 1200px;
+	max-width: 1240px;
 	margin: 0 auto;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 20px;
+	gap: 24px;
+}
+
+.grr-style-banner .grr-prompt-header {
+	margin-bottom: 0;
+}
+
+.grr-style-banner .grr-prompt-body {
+	margin-bottom: 0;
+	flex: 1;
 }
 
 /* ==========================================================================
@@ -90,10 +125,11 @@
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(15, 23, 42, 0.55);
-	backdrop-filter: blur(6px);
+	background: rgba(15, 23, 42, 0.6);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
 	z-index: 999998;
-	animation: grrFadeIn 0.3s ease-out forwards;
+	animation: grrFadeIn 0.35s ease-out forwards;
 }
 
 .grr-prompt-wrapper.grr-style-modal {
@@ -104,61 +140,93 @@
 	max-width: 480px;
 	width: calc(100% - 40px);
 	background: var(--grr-bg);
+	backdrop-filter: var(--grr-backdrop);
+	-webkit-backdrop-filter: var(--grr-backdrop);
 	border: 1px solid var(--grr-border);
-	border-radius: var(--grr-radius);
-	box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-	padding: 28px;
-	animation: grrScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	border-radius: 20px;
+	box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.3), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+	padding: 30px;
+	animation: grrScaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	overflow: hidden;
+}
+
+.grr-prompt-wrapper.grr-style-modal::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: linear-gradient(90deg, #38bdf8 0%, #2563eb 50%, #6366f1 100%);
 }
 
 /* ==========================================================================
-   Content Components
+   Header & Badge Components
    ========================================================================== */
 .grr-prompt-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 12px;
+	margin-bottom: 14px;
 }
 
 .grr-prompt-badge {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 14px;
+	font-size: 13px;
 	font-weight: 600;
 	color: var(--grr-text);
+	background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(99, 102, 241, 0.08));
+	border: 1px solid rgba(37, 99, 235, 0.15);
+	padding: 4px 10px;
+	border-radius: 9999px;
 }
 
 .grr-prompt-flag {
-	font-size: 22px;
+	font-size: 18px;
 	line-height: 1;
+	filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
+/* Frosted Circular Close Button */
 .grr-prompt-close {
-	background: transparent;
-	border: none;
+	background: var(--grr-bg-secondary);
+	border: 1px solid var(--grr-border-subtle);
 	cursor: pointer;
 	color: var(--grr-text-muted);
-	font-size: 18px;
-	padding: 4px;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 14px;
 	line-height: 1;
-	border-radius: 6px;
-	transition: all 0.15s ease;
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	padding: 0;
 }
 
 .grr-prompt-close:hover {
 	color: var(--grr-text);
-	background: rgba(100, 116, 139, 0.12);
+	background: rgba(100, 116, 139, 0.18);
+	border-color: var(--grr-border);
+	transform: rotate(90deg) scale(1.08);
 }
 
+/* ==========================================================================
+   Body Content
+   ========================================================================== */
 .grr-prompt-body {
 	font-size: 14px;
-	line-height: 1.5;
+	line-height: 1.55;
 	color: var(--grr-text-muted);
-	margin-bottom: 18px;
+	margin-bottom: 20px;
 }
 
+/* ==========================================================================
+   Action Buttons
+   ========================================================================== */
 .grr-prompt-actions {
 	display: flex;
 	align-items: center;
@@ -166,62 +234,88 @@
 	flex-wrap: wrap;
 }
 
-/* Buttons */
+/* Primary CTA: Vibrant Gradient Button */
 .grr-btn-switch {
-	background: var(--grr-primary);
+	background: var(--grr-primary-gradient);
 	color: #ffffff !important;
 	border: none;
-	border-radius: 8px;
+	border-radius: var(--grr-radius-sm);
 	padding: 10px 18px;
 	font-size: 14px;
 	font-weight: 600;
 	text-decoration: none !important;
 	cursor: pointer;
-	transition: all 0.2s ease;
+	transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+	box-shadow: 0 4px 14px -1px rgba(37, 99, 235, 0.35);
+	position: relative;
+	overflow: hidden;
 }
 
 .grr-btn-switch:hover {
-	background: var(--grr-primary-hover);
-	box-shadow: 0 6px 12px -2px rgba(37, 99, 235, 0.35);
-	transform: translateY(-1px);
+	background: var(--grr-primary-gradient-hover);
+	box-shadow: 0 8px 22px -2px rgba(37, 99, 235, 0.5);
+	transform: translateY(-2px);
 }
 
+.grr-btn-switch:active {
+	transform: translateY(0);
+	box-shadow: 0 2px 8px -1px rgba(37, 99, 235, 0.3);
+}
+
+.grr-btn-arrow {
+	display: inline-block;
+	transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	font-weight: bold;
+}
+
+.grr-btn-switch:hover .grr-btn-arrow {
+	transform: translateX(4px);
+}
+
+/* Secondary CTA: Ghost Stay Button */
 .grr-btn-stay {
-	background: transparent;
+	background: var(--grr-bg-secondary);
 	color: var(--grr-text-muted) !important;
 	border: 1px solid var(--grr-border);
-	border-radius: 8px;
+	border-radius: var(--grr-radius-sm);
 	padding: 10px 16px;
 	font-size: 14px;
 	font-weight: 500;
 	cursor: pointer;
-	transition: all 0.2s ease;
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 	text-decoration: none !important;
 }
 
 .grr-btn-stay:hover {
 	color: var(--grr-text) !important;
-	border-color: var(--grr-text-muted);
-	background: rgba(100, 116, 139, 0.05);
+	border-color: rgba(148, 163, 184, 0.8);
+	background: rgba(226, 232, 240, 0.85);
+	transform: translateY(-1px);
 }
 
-/* Auto-redirect Countdown */
+.grr-btn-stay:active {
+	transform: translateY(0);
+}
+
+/* ==========================================================================
+   Auto-redirect Countdown Bar
+   ========================================================================== */
 .grr-countdown-bar-wrap {
 	margin-top: 14px;
-	background: rgba(100, 116, 139, 0.15);
+	background: rgba(100, 116, 139, 0.12);
 	height: 4px;
-	border-radius: 2px;
+	border-radius: 9999px;
 	overflow: hidden;
 }
 
 .grr-countdown-bar {
 	height: 100%;
-	background: var(--grr-primary);
+	background: linear-gradient(90deg, #38bdf8 0%, #2563eb 50%, #6366f1 100%);
 	width: 100%;
+	border-radius: 9999px;
 	transition: width linear;
 }
 
@@ -243,26 +337,31 @@
 	cursor: pointer;
 	padding: 0;
 	text-decoration: underline;
+	transition: color 0.15s ease;
+}
+
+.grr-countdown-cancel:hover {
+	color: var(--grr-primary-hover);
 }
 
 /* ==========================================================================
-   Keyframe Animations
+   Keyframe Entrance Animations
    ========================================================================== */
 @keyframes grrSlideUp {
 	from {
 		opacity: 0;
-		transform: translateY(20px);
+		transform: translateY(24px) scale(0.97);
 	}
 	to {
 		opacity: 1;
-		transform: translateY(0);
+		transform: translateY(0) scale(1);
 	}
 }
 
 @keyframes grrSlideDown {
 	from {
 		opacity: 0;
-		transform: translateY(-20px);
+		transform: translateY(-24px);
 	}
 	to {
 		opacity: 1;
@@ -273,7 +372,7 @@
 @keyframes grrScaleIn {
 	from {
 		opacity: 0;
-		transform: translate(-50%, -46%) scale(0.95);
+		transform: translate(-50%, -46%) scale(0.94);
 	}
 	to {
 		opacity: 1;
@@ -286,27 +385,29 @@
 	to { opacity: 1; }
 }
 
-/* Exit / Fade-Out Animations */
+/* ==========================================================================
+   Keyframe Exit / Fade-Out Animations
+   ========================================================================== */
 .grr-prompt-wrapper.grr-fade-out {
-	animation: grrFadeOutDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+	animation: grrFadeOutDown 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 	opacity: 0 !important;
 	pointer-events: none !important;
 }
 
 .grr-prompt-wrapper.grr-style-banner.grr-fade-out {
-	animation: grrFadeOutUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+	animation: grrFadeOutUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 	opacity: 0 !important;
 	pointer-events: none !important;
 }
 
 .grr-prompt-wrapper.grr-style-modal.grr-fade-out {
-	animation: grrFadeOutScale 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+	animation: grrFadeOutScale 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 	opacity: 0 !important;
 	pointer-events: none !important;
 }
 
 .grr-modal-backdrop.grr-fade-out {
-	animation: grrFadeOutBackdrop 0.4s ease-out forwards !important;
+	animation: grrFadeOutBackdrop 0.38s ease-out forwards !important;
 	opacity: 0 !important;
 	pointer-events: none !important;
 }
@@ -314,11 +415,11 @@
 @keyframes grrFadeOutDown {
 	from {
 		opacity: 1;
-		transform: translateY(0);
+		transform: translateY(0) scale(1);
 	}
 	to {
 		opacity: 0;
-		transform: translateY(20px);
+		transform: translateY(24px) scale(0.97);
 	}
 }
 
@@ -329,7 +430,7 @@
 	}
 	to {
 		opacity: 0;
-		transform: translateY(-20px);
+		transform: translateY(-24px);
 	}
 }
 
@@ -340,7 +441,7 @@
 	}
 	to {
 		opacity: 0;
-		transform: translate(-50%, -46%) scale(0.95);
+		transform: translate(-50%, -46%) scale(0.94);
 	}
 }
 
@@ -349,21 +450,23 @@
 	to { opacity: 0; }
 }
 
-/* Mobile Responsiveness */
+/* ==========================================================================
+   Mobile Responsiveness
+   ========================================================================== */
 @media (max-width: 640px) {
 	.grr-prompt-wrapper.grr-style-card {
-		bottom: 12px;
-		right: 12px;
-		left: 12px;
-		width: calc(100% - 24px);
+		bottom: 14px;
+		right: 14px;
+		left: 14px;
+		width: calc(100% - 28px);
 		max-width: none;
-		padding: 16px;
+		padding: 20px;
 	}
 
 	.grr-style-banner .grr-prompt-inner {
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 12px;
+		gap: 14px;
 	}
 
 	.grr-prompt-actions {

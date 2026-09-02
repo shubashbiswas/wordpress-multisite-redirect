@@ -5,18 +5,13 @@
 (function () {
 	'use strict';
 
-	console.log('[GRR] Geo Regional Router prompt script loaded (v1.0.6).');
+	console.log('[GRR] Geo Regional Router prompt script loaded (v1.1.4).');
 
 	if (typeof window === 'undefined') {
 		return;
 	}
 
-	if (typeof grrPromptConfig === 'undefined') {
-		console.warn('[GRR] grrPromptConfig is not defined on this page.');
-		return;
-	}
-
-	console.log('[GRR] Active config:', grrPromptConfig);
+	const isTestMode = window.location.search.indexOf('grr_test_country') !== -1;
 
 	/**
 	 * Cookie helper functions.
@@ -37,43 +32,94 @@
 		document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/; SameSite=Lax' + isSecure;
 	}
 
-	// 1. Initial Exclusion Checks
-	if (window.location.search.indexOf('skipredirect') !== -1 || window.location.search.indexOf('preview=true') !== -1) {
-		console.log('[GRR] Prompt skipped: skipredirect/preview parameter detected.');
-		return;
-	}
-
-	const manualCountry = getCookie('grr_user_manual_country');
-	const isTestMode = window.location.search.indexOf('grr_test_country') !== -1;
-	if (isTestMode) {
-		console.log('[GRR] Test mode active via query parameter.');
-	}
-
-	// If visitor already explicitly chose to stay on this website (and hasn't chosen another region), don't nag them
-	if (!manualCountry && !isTestMode && getCookie('grr_choice_dismissed') === '1') {
-		console.log('[GRR] Prompt skipped: visitor previously chose to stay on this website (grr_choice_dismissed=1).');
-		return;
-	}
-
-	// Show strictly ONCE per browser session across all pages for undecided visitors
-	if (!manualCountry && !isTestMode) {
-		try {
-			if (sessionStorage.getItem('grr_session_shown') === '1') {
-				console.log('[GRR] Prompt skipped: already shown once in this session (sessionStorage).');
-				return;
-			}
-		} catch (e) {}
-
-		if (getCookie('grr_session_shown') === '1') {
-			console.log('[GRR] Prompt skipped: already shown once in this session (session cookie).');
+	/**
+	 * Setup Full-Screen Region Selector Modal handlers
+	 */
+	function initRegionModal() {
+		const modal = document.getElementById('grrRegionModal');
+		if (!modal) {
 			return;
 		}
+
+		const backdrop = document.getElementById('grrRegionModalBackdrop');
+		const closeBtn = document.getElementById('grrCloseRegionModal');
+
+		function openModal() {
+			modal.classList.add('is-active');
+			modal.setAttribute('aria-hidden', 'false');
+			document.body.style.overflow = 'hidden';
+		}
+
+		function closeModal() {
+			modal.classList.remove('is-active');
+			modal.setAttribute('aria-hidden', 'true');
+			document.body.style.overflow = '';
+		}
+
+		// Delegated click listener supporting static, dynamic, menu, and mobile drawer elements across any theme
+		document.addEventListener('click', function (e) {
+			const trigger = e.target.closest('#grrOpenRegionModal, .grr-footer-trigger, .grr-header-cart-trigger, .grr-region-trigger, a[href="#region-modal"], a[href$="#region-modal"]');
+			if (trigger) {
+				e.preventDefault();
+				openModal();
+			}
+		});
+
+		if (backdrop) {
+			backdrop.addEventListener('click', closeModal);
+		}
+
+		if (closeBtn) {
+			closeBtn.addEventListener('click', closeModal);
+		}
+
+		document.addEventListener('keydown', function (e) {
+			if ((e.key === 'Escape' || e.keyCode === 27) && modal.classList.contains('is-active')) {
+				closeModal();
+			}
+		});
 	}
 
 	/**
-	 * Initialize async check after DOM is ready and configured delay has elapsed.
+	 * Automated Geo-Prompt Modal / Banner Logic
 	 */
-	function init() {
+	function runGeoPrompt() {
+		if (typeof window.grrPromptConfig === 'undefined') {
+			return;
+		}
+
+		// Initial Exclusion Checks
+		if (window.location.search.indexOf('skipredirect') !== -1 || window.location.search.indexOf('preview=true') !== -1) {
+			console.log('[GRR] Prompt skipped: skipredirect/preview parameter detected.');
+			return;
+		}
+
+		const manualCountry = getCookie('grr_user_manual_country');
+		if (isTestMode) {
+			console.log('[GRR] Test mode active via query parameter.');
+		}
+
+		// If visitor already explicitly chose to stay on this website, don't nag them
+		if (!manualCountry && !isTestMode && getCookie('grr_choice_dismissed') === '1') {
+			console.log('[GRR] Prompt skipped: visitor previously chose to stay on this website (grr_choice_dismissed=1).');
+			return;
+		}
+
+		// Show strictly ONCE per browser session across all pages for undecided visitors
+		if (!manualCountry && !isTestMode) {
+			try {
+				if (sessionStorage.getItem('grr_session_shown') === '1') {
+					console.log('[GRR] Prompt skipped: already shown once in this session (sessionStorage).');
+					return;
+				}
+			} catch (e) {}
+
+			if (getCookie('grr_session_shown') === '1') {
+				console.log('[GRR] Prompt skipped: already shown once in this session (session cookie).');
+				return;
+			}
+		}
+
 		// If visitor has an established manual regional preference, route immediately without delay
 		const hasManualChoice = !!getCookie('grr_user_manual_country');
 		const delay = hasManualChoice ? 0 : Math.max(0, parseInt(grrPromptConfig.delay, 10) || 1500);
@@ -193,7 +239,7 @@
 				</div>
 				<div class="grr-prompt-actions">
 					<a href="${data.target_url}" class="grr-btn-switch" id="grrBtnSwitch">
-						${switchText} →
+						<span>${switchText}</span> <span class="grr-btn-arrow" aria-hidden="true">→</span>
 					</a>
 					<button type="button" class="grr-btn-stay" id="grrBtnStay">
 						${stayText}
@@ -326,6 +372,11 @@
 				document.removeEventListener('keydown', escHandler);
 			}
 		});
+	}
+
+	function init() {
+		initRegionModal();
+		runGeoPrompt();
 	}
 
 	if (document.readyState === 'loading') {

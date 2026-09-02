@@ -3,7 +3,7 @@
  * Plugin Name: Geo Regional Router
  * Plugin URI: https://example.com/plugins/geo-regional-router
  * Description: Production-ready WordPress Multisite country-based URL routing engine for multi-regional WordPress installations.
- * Version: 1.0.6
+ * Version: 1.1.4
  * Author: Antigravity
  * Author URI: https://example.com
  * License: GPL-2.0-or-later
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'GRR_VERSION', '1.0.6' );
+define( 'GRR_VERSION', '1.1.4' );
 define( 'GRR_PLUGIN_FILE', __FILE__ );
 define( 'GRR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GRR_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -80,9 +80,7 @@ register_activation_hook( __FILE__, function (): void {
 			'prompt_delay'                 => 1.5,
 			'prompt_auto_hide'             => 7,
 			'auto_redirect_countdown'      => 0,
-			'enable_footer_switcher'       => 0,
-			'footer_switcher_style'        => 'inline',
-			'footer_switcher_position'     => 'center',
+			'enable_frontend_switcher'     => 1,
 			'site_global'                  => get_main_site_id(),
 			'site_bd'                      => 0,
 			'site_in'                      => 0,
@@ -118,3 +116,14 @@ add_action( 'plugins_loaded', function (): void {
 		\GRR\Plugin::get_instance();
 	}
 } );
+
+if ( ! function_exists( 'grr_region_switcher' ) ) {
+	/**
+	 * Template helper function to render the Region Switcher element.
+	 *
+	 * @param string $style 'cart', 'header', or 'footer'.
+	 */
+	function grr_region_switcher( string $style = 'cart' ): void {
+		echo do_shortcode( '[geo_regional_switcher style="' . esc_attr( $style ) . '"]' );
+	}
+}

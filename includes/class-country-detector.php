@@ -198,6 +198,30 @@ class Country_Detector
 		// Priority 5: MaxMind GeoIP Local Database
 		if (null === $detected) {
 			$maxmind_db = trim((string) ($options['maxmind_db_path'] ?? ''));
+
+			// 1. If not configured or missing, check WooCommerce GeoIP database
+			if (empty($maxmind_db) || ! file_exists($maxmind_db)) {
+				if (class_exists('WC_Geolocation') && method_exists('WC_Geolocation', 'get_local_database_path')) {
+					$wc_path = \WC_Geolocation::get_local_database_path();
+					if (! empty($wc_path) && file_exists($wc_path) && is_readable($wc_path)) {
+						$maxmind_db = $wc_path;
+					}
+				}
+			}
+
+			// 2. Check standard WooCommerce uploads folder if class wasn't loaded
+			if (empty($maxmind_db) || ! file_exists($maxmind_db)) {
+				$upload_dir = wp_upload_dir();
+				$wc_uploads = trailingslashit($upload_dir['basedir']) . 'woocommerce_uploads/';
+				if (is_dir($wc_uploads)) {
+					$glob_matches = glob($wc_uploads . '*GeoLite2-Country.mmdb');
+					if (! empty($glob_matches) && file_exists($glob_matches[0]) && is_readable($glob_matches[0])) {
+						$maxmind_db = $glob_matches[0];
+					}
+				}
+			}
+
+			// 3. Bundled plugin fallback
 			if (empty($maxmind_db) || ! file_exists($maxmind_db)) {
 				$bundled_path = plugin_dir_path(dirname(__FILE__)) . 'assets/GeoLite2/GeoLite2-Country.mmdb';
 				if (file_exists($bundled_path)) {

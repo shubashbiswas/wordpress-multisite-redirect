@@ -8,6 +8,7 @@
 ## 1. Project Overview & Context
 
 * **Plugin Name:** Geo Regional Router
+* **Current Version:** `1.0.6`
 * **Type:** WordPress Multisite Network-Activated Plugin
 * **Minimum Requirements:** WordPress 6.0+, PHP 8.3+
 * **Primary Target Environment:** WordPress Multisite (subdirectory format, e.g., `/` for Global, `/bd/` for Bangladesh, `/in/` for India) running on **LiteSpeed Web Server**, Hostinger Shared Hosting, Cloudflare, or Nginx.
@@ -30,23 +31,33 @@ The plugin supports two operational paradigms, configurable under **Network Admi
     ⚡ 100% Full Page Cache Hit                                  │
     (Page served in < 20ms statically)                           │
                  │                                               │
-    DOM Ready + 1.5s Delay                                       │
+    DOM Ready + Configured Delay                                 │
+    (0ms if returning known visitor;                             │
+     1.5s delay if first-time visitor)                           │
                  │                                               │
     Asynchronous REST API Call                                   │
     (/wp-json/grr/v1/detect)                                     │
                  │                                               │
-    Does visitor country match site?                             │
-    ├── YES: Do nothing.                                         │
-    └── NO:  Display sleek UI Card/Banner                        │
-             with Switch / Stay buttons                          ▼
+    Has visitor previously selected a region?                    │
+    ├── YES (grr_user_manual_country set):                       │
+    │   └── Instantly auto-redirect to regional URL               │
+    │                                                            │
+    └── NO (Undecided first-time visitor):                       │
+        Does visitor country match current site?                 │
+        ├── YES: Do nothing (visitor is in right place).         │
+        └── NO:  Display sleek UI Card/Banner                    │
+                 with Switch / Stay buttons                      ▼
                  │                                    PHP template_redirect hook
-             User Choice:                             detects country & sends
+             Visitor Choice:                          detects country & sends
              - Switch → Cookie set & navigate         302 wp_safe_redirect
              - Stay   → Dismissal cookie set          (Bypasses page cache)
+             - Auto-Hide (7s) → Assume stay, fade out
 ```
 
 ### Mode 1: Client-Side Geo-Prompt (Default & Recommended)
-* **How it works:** Leaves backend `template_redirect` untouched. Every regional page (`/`, `/bd/`, `/in/`) is 100% cached as static HTML by LiteSpeed Cache. After page load, a lightweight Vanilla JS script queries `/wp-json/grr/v1/detect`. If the visitor is in Bangladesh but viewing the Global site, an elegant floating card or banner asks them to switch or auto-redirects after a countdown.
+* **How it works:** Leaves backend `template_redirect` untouched. Every regional page (`/`, `/bd/`, `/in/`) is 100% cached as static HTML by LiteSpeed Cache. After page load, a lightweight Vanilla JS script queries `/wp-json/grr/v1/detect`.
+* **Returning Visitors with Saved Choice:** If a visitor previously selected a country (`grr_user_manual_country`), the script executes with **0ms delay** and **automatically redirects** them directly to their preferred regional site (`window.location.replace()`) without showing any prompt.
+* **Undecided Visitors:** If the visitor has not chosen yet, it waits for the display delay (default: 1.5s), checks if they should switch, and renders a floating card or banner. If no action is taken within the auto-hide timer (default: 7s), it smoothly slides down and fades out, remembering their choice to stay for the configured retention period (default: 7 days).
 * **Why it's essential:** Completely eliminates the LiteSpeed Cache conflict where static caching on `/` would otherwise break PHP backend redirects. Also satisfies Google's SEO guideline: *"Avoid automatic redirects based on IP; use a banner or prompt instead."*
 
 ### Mode 2: Immediate 302 Redirect (Legacy Engine)
@@ -59,7 +70,7 @@ The plugin supports two operational paradigms, configurable under **Network Admi
 
 ```
 wp-content/plugins/redirect/
-├── geo-regional-router.php        # Main entry point, autoloader, activation & defaults
+├── geo-regional-router.php        # Main entry point, autoloader, activation & defaults (v1.0.6)
 ├── uninstall.php                  # Clean database cleanup script on plugin deletion
 ├── README.md                      # Public documentation & user guide
 ├── promt.md                       # This Master Developer & AI Engineering Prompt
@@ -67,18 +78,18 @@ wp-content/plugins/redirect/
 ├── includes/
 │   ├── class-plugin.php           # Singleton orchestrator, hooks, REST API & frontend assets
 │   ├── class-router.php           # Destination calculator, URL normalizer & redirect engine
-│   ├── class-country-detector.php # Multi-source GeoIP detector & pure-PHP MMDB reader
+│   ├── class-country-detector.php # Multi-source GeoIP detector (with WooCommerce auto-discovery) & MMDB reader
 │   ├── class-settings.php         # Network Admin tabbed settings UI & options persistence
 │   ├── class-diagnostics.php      # Live interactive routing simulator & log manager
 │   └── class-logger.php           # Privacy-safe debug logger (automatic IP redaction)
 │
 └── assets/
-    ├── grr-prompt.js              # Vanilla JS frontend controller (< 4KB, zero dependencies)
-    ├── grr-prompt.css             # Glassmorphic responsive styles for Prompt Card, Banner & Modal
+    ├── grr-prompt.js              # Vanilla JS frontend controller (< 5KB, zero dependencies)
+    ├── grr-prompt.css             # Glassmorphic responsive styles & exit keyframe animations
     ├── admin.js                   # Admin simulator AJAX runner & log cleaner
-    ├── admin.css                  # Network admin settings & diagnostic styles
+    ├── admin.css                  # Network admin settings, switcher styling & diagnostic styles
     └── GeoLite2/
-        ├── GeoLite2-Country.mmdb  # Bundled MaxMind binary database
+        ├── GeoLite2-Country.mmdb  # Bundled MaxMind binary database fallback
         ├── COPYRIGHT.txt
         └── LICENSE.txt
 ```
@@ -94,17 +105,15 @@ Stored as a single network option (`get_site_option('grr_options')`):
 | `enabled` | `int` (0/1) | `0` | Master switch for regional routing. |
 | `routing_mode` | `string` | `'prompt'` | `'prompt'` (Client-Side Prompt) or `'immediate'` (Backend 302). |
 | `redirect_status` | `int` | `302` | HTTP redirect code: `302`, `307`, `301`, or `308`. |
-| `prompt_style` | `string` | `'card'` | UI layout: `'card'` (floating), `'banner'` (top bar), or `'modal'`. |
-| `prompt_delay` | `float` | `1.5` | Delay in seconds before prompt appears. |
-| `prompt_auto_hide` | `int` | `0` | Seconds to auto-dismiss prompt without redirect (`0` = disabled). |
-| `auto_redirect_countdown` | `int` | `0` | Seconds for countdown timer (`0` = manual click only). |
-| `enable_footer_switcher` | `int` (0/1) | `0` | Automatically render country switcher in website footer (`wp_footer`). |
-| `footer_switcher_style` | `string` | `'inline'` | `'inline'` (flags & text), `'buttons'`, or `'compact'` (select). |
-| `footer_switcher_position` | `string` | `'center'` | Alignment: `'center'`, `'left'`, or `'right'`. |
+| `cookie_persistence` | `string` | `'7d'` | Retention period: `'disabled'`, `'session'`, `'24h'`, `'7d'`, or `'30d'`. |
+| `prompt_style` | `string` | `'card'` | UI layout: `'card'` (floating card), `'banner'` (top bar), or `'modal'` (center dialog). |
+| `prompt_delay` | `float` | `1.5` | Delay in seconds before prompt appears for undecided visitors. |
+| `prompt_auto_hide` | `int` | `7` | Seconds before notification automatically fades out (assumes visitor wants to stay). |
+| `auto_redirect_countdown` | `int` | `0` | Seconds for countdown timer (`0` = manual click only; >0 auto-redirects with Cancel button). |
+| `enable_frontend_switcher` | `int` (0/1) | `1` | Enable Regional Store Switcher (Gutenberg Block, Widgets, & Shortcodes). |
 | `site_global` | `int` | `1` | Blog ID of Global / Default site (`/`). |
 | `site_bd` | `int` | `0` | Blog ID of Bangladesh site (`/bd/`). |
 | `site_in` | `int` | `0` | Blog ID of India site (`/in/`). |
-| `cookie_persistence` | `string` | `'disabled'` | `'disabled'`, `'session'`, `'24h'`, or `'7d'`. |
 | `skip_logged_in_admins` | `int` (0/1) | `1` | Bypass routing for administrators. |
 | `skip_logged_in_users` | `int` (0/1) | `0` | Bypass routing for all logged-in users. |
 | `skip_bots` | `int` (0/1) | `1` | Bypass search crawlers (Googlebot, Bingbot, etc.). |
@@ -120,7 +129,7 @@ Stored as a single network option (`get_site_option('grr_options')`):
 | `country_source_header` | `int` (0/1) | `0` | Check custom proxy header. |
 | `country_custom_header_name` | `string` | `'HTTP_X_GEOIP_COUNTRY'` | Header name for reverse proxies. |
 | `trusted_proxies` | `string` | `''` | IP or CIDR list for trusted proxies. |
-| `maxmind_db_path` | `string` | `''` | Custom path to external `.mmdb` file. |
+| `maxmind_db_path` | `string` | `''` | Custom path to external `.mmdb` file (auto-detects WooCommerce if empty). |
 | `maxmind_license_key` | `string` | `''` | License key for weekly automated updates. |
 | `debug_mode` | `int` (0/1) | `0` | Log decisions to `geo-regional-router-debug.log`. |
 | `delete_data_on_uninstall` | `int` (0/1) | `0` | Delete network option upon uninstall. |
@@ -136,7 +145,11 @@ The `Country_Detector::detect_country()` method checks sources in strict priorit
 3. **Saved Visitor Country Cookie**: `grr_visitor_country` (if cookie persistence is enabled).
 4. **Cloudflare Header**: `HTTP_CF_IPCOUNTRY` (sanitized and validated against 2-letter ISO).
 5. **Configured Custom Header**: E.g., `HTTP_X_GEOIP_COUNTRY` (only trusted if IP is within trusted proxies).
-6. **MaxMind GeoLite2 Binary Database**: High-speed pure-PHP binary reader located in `assets/GeoLite2/GeoLite2-Country.mmdb`.
+6. **MaxMind GeoLite2 Binary Database**:
+   - *Check 1:* User-configured custom path (`$options['maxmind_db_path']`).
+   - *Check 2:* **WooCommerce MaxMind Auto-Discovery** via `\WC_Geolocation::get_local_database_path()`.
+   - *Check 3:* WooCommerce uploads directory (`wp-content/uploads/woocommerce_uploads/*GeoLite2-Country.mmdb`).
+   - *Check 4:* Bundled plugin fallback (`assets/GeoLite2/GeoLite2-Country.mmdb`).
 7. **Fallback**: Returns `'UNKNOWN'` (prevents redirection loops).
 
 ---
@@ -148,7 +161,7 @@ The `Country_Detector::detect_country()` method checks sources in strict priorit
 * **Headers Sent:** `Cache-Control: no-store, no-cache, must-revalidate, max-age=0` (Never cached).
 * **Parameters:**
   * `current_url` *(optional)*: Full URL of the frontend page requesting the evaluation.
-* **Sample JSON Response:**
+* **Success Payload Structure (JSON):**
   ```json
   {
     "success": true,
@@ -156,8 +169,8 @@ The `Country_Detector::detect_country()` method checks sources in strict priorit
     "country_name": "Bangladesh",
     "flag": "🇧🇩",
     "should_switch": true,
-    "current_url": "https://domain.com/about/",
-    "target_url": "https://domain.com/bd/about/",
+    "current_url": "https://domain.com/",
+    "target_url": "https://domain.com/bd/",
     "target_site_id": 2,
     "target_label": "Bangladesh Store",
     "source": "MaxMind GeoIP Database"
@@ -166,50 +179,44 @@ The `Country_Detector::detect_country()` method checks sources in strict priorit
 
 ---
 
-## 7. Developer Hooks & Filters
+## 7. Client-Side Lifecycle & Event Handling (`grr-prompt.js`)
 
-Extend or modify plugin behavior programmatically without editing core files:
-
-```php
-// 1. Filter detected country code
-add_filter( 'geo_regional_router_country', function( string $country, string $current_url ): string {
-    if ( strpos( $current_url, '/partner-bd/' ) !== false ) {
-        return 'BD';
-    }
-    return $country;
-}, 10, 2 );
-
-// 2. Prevent redirection on specific pages
-add_filter( 'geo_regional_router_should_redirect', function( bool $should, string $current, string $target, string $country ): bool {
-    if ( is_page( 'special-landing' ) ) {
-        return false;
-    }
-    return $should;
-}, 10, 4 );
-
-// 3. Customize target redirect URL
-add_filter( 'geo_regional_router_redirect_url', function( string $target_url, string $current_url, string $country ): string {
-    return add_query_arg( 'ref', 'geo', $target_url );
-}, 10, 3 );
+```
+Page Load
+  │
+  ├── 1. Exclusion Checks:
+  │      - ?skipredirect or ?preview=true present? → EXIT.
+  │
+  ├── 2. Returning Visitor Check:
+  │      - Is grr_user_manual_country set?
+  │        ├── YES: delay = 0ms → Fetch route immediately.
+  │        │        When target_url returned → window.location.replace(target_url).
+  │        │
+  │        └── NO (Undecided Visitor):
+  │            - Has prompt been dismissed (grr_choice_dismissed=1)? → EXIT.
+  │            - Already shown in this session (grr_session_shown=1)? → EXIT.
+  │            - delay = 1500ms → Fetch route.
+  │
+  └── 3. Render Prompt:
+         - Appends .grr-prompt-wrapper to document.body.
+         - Marks sessionStorage.setItem('grr_session_shown', '1') and session cookie.
+         - If countdown > 0: Progress bar animates; redirects upon expiry; Cancel dismisses prompt.
+         - If countdown == 0: 7s auto-hide timer starts.
+         - On expiry / Stay click / ✕ click / Esc:
+           - Sets grr_choice_dismissed for configured TTL (e.g. 7 days).
+           - Adds .grr-fade-out CSS class.
+           - Removes DOM node after 420ms.
 ```
 
 ---
 
-## 8. Coding & Engineering Rules for Future Development
+## 8. LiteSpeed Cache (LSCache) Best Practices
 
-When extending or modifying this plugin, adhere strictly to these rules:
+When deploying on LiteSpeed Web Server (e.g. Hostinger, cPanel):
 
-1. **Never break Full Page Cache (LSCache)**:
-   * Do not add blocking logic into PHP `init` or `template_redirect` when `routing_mode === 'prompt'`.
-   * Keep the frontend check strictly asynchronous via the `/wp-json/grr/v1/detect` REST endpoint.
-2. **Zero Dependencies on Frontend**:
-   * Keep `grr-prompt.js` in pure **Vanilla JavaScript** (no jQuery, no external frameworks, < 5KB).
-   * Ensure mobile responsiveness and accessible keyboard controls (`Escape` key closes prompt).
-3. **URL Normalization & Double-Prefix Guard**:
-   * Always route paths through `Router::extract_clean_path()` to guarantee that paths like `/bd/about/` never turn into `/bd/bd/about/`.
-   * Preserve all query strings (`utm_*`, `gclid`, `fbclid`, filters).
-4. **Privacy & Security**:
-   * Never write raw visitor IP addresses to `geo-regional-router-debug.log`. Always sanitize with `Logger::sanitize_log_message()`.
-   * Validate all redirect hosts against configured Multisite blog domains to prevent open redirect vulnerabilities.
-5. **Multi-Region Scalability**:
-   * To add support for additional regions (e.g., US, UK, EU, UAE), register the new site in the settings options array (`grr_options`) and extend the mapping switch inside `Router::calculate_destination()`.
+1. **Recommended Presets:** Use **Advanced (Recommended)** or **Essentials**. Do **NOT** use **Extreme** or **Aggressive**.
+2. **Guest Mode: OFF ❌**: In **LiteSpeed Cache > General**, turn **Guest Mode** and **Guest Optimization** **OFF**. Guest Mode creates an IP vary cache that interferes with dynamic geolocation routing.
+3. **JS Optimization Exclude**: If **Load JS Deferred** or **JS Combine** is enabled under **Page Optimization > JS Settings**, add `grr-prompt` to:
+   - **JS Excludes**
+   - **JS Deferred / Delayed Excludes**
+   This ensures `grr-prompt.js` executes immediately on DOM ready without waiting for user scroll/mouse interaction.
