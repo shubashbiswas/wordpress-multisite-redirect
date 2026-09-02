@@ -171,3 +171,80 @@
 	border-radius: 8px;
 	overflow: hidden;
 }
+
+/* Dedicated Footer Switcher (wp_footer) */
+.grr-footer-switcher-wrapper {
+	width: 100%;
+	padding: 16px 20px;
+	box-sizing: border-box;
+	clear: both;
+}
+
+.grr-footer-switcher-wrapper.grr-align-center {
+	display: flex;
+	justify-content: center;
+	text-align: center;
+}
+
+.grr-footer-switcher-wrapper.grr-align-left {
+	display: flex;
+	justify-content: flex-start;
+	text-align: left;
+}
+
+.grr-footer-switcher-wrapper.grr-align-right {
+	display: flex;
+	justify-content: flex-end;
+	text-align: right;
+}
+
+.grr-footer-switcher-inner {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	font-size: 13px;
+	color: #64748b;
+}
+
+.grr-footer-switcher-label {
+	font-weight: 600;
+	color: inherit;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+/* Inline Link Switcher */
+.grr-switcher-inline {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 13px;
+}
+
+.grr-switcher-link {
+	color: #64748b;
+	text-decoration: none;
+	transition: color 0.15s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.grr-switcher-link:hover {
+	color: #2563eb;
+	text-decoration: underline;
+}
+
+.grr-switcher-link.is-active {
+	color: #0f172a;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.grr-switcher-sep {
+	color: #cbd5e1;
+	user-select: none;
+}
+

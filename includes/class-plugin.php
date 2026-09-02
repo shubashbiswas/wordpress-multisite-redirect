@@ -86,6 +86,7 @@ final class Plugin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 		add_action( 'wp_footer', array( $this, 'render_floating_widget' ) );
+		add_action( 'wp_footer', array( $this, 'render_footer_switcher' ), 20 );
 
 		// Admin Bar Quick Switcher
 		add_action( 'admin_bar_menu', array( $this, 'register_admin_bar_switcher' ), 100 );
@@ -102,6 +103,9 @@ final class Plugin {
 
 		// Register router engine on template_redirect hook
 		$this->router->init();
+
+		// Register dynamic Geo detection REST API endpoint
+		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 
 		// Register weekly MaxMind cron task
 		add_action( 'grr_weekly_maxmind_update', array( $this, 'run_maxmind_cron_update' ) );
@@ -211,7 +215,6 @@ final class Plugin {
 		$url_global = add_query_arg( 'grr_set_country', 'GLOBAL', rtrim( $global_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query );
 		$url_bd     = add_query_arg( 'grr_set_country', 'BD', rtrim( $bd_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query );
 		$url_in     = add_query_arg( 'grr_set_country', 'IN', rtrim( $in_url, '/' ) . '/' . ltrim( $clean_path, '/' ) . $query );
-		$url_reset  = add_query_arg( 'grr_set_country', 'reset', $this->router->get_current_url() );
 
 		$current_blog_id = get_current_blog_id();
 		$style           = strtolower( sanitize_key( $atts['style'] ) );
@@ -230,6 +233,32 @@ final class Plugin {
 				<span class="grr-switcher-sep">/</span>
 				<a href="<?php echo esc_url( $url_in ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_in_id ? 'is-active' : ''; ?>">
 					IN
+				</a>
+			</div>
+		<?php elseif ( 'buttons' === $style ) : ?>
+			<div class="grr-switcher-buttons">
+				<a href="<?php echo esc_url( $url_global ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_global_id ? 'is-active' : ''; ?>">
+					🌐 Global
+				</a>
+				<a href="<?php echo esc_url( $url_bd ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_bd_id ? 'is-active' : ''; ?>">
+					🇧🇩 Bangladesh
+				</a>
+				<a href="<?php echo esc_url( $url_in ); ?>" class="grr-switcher-btn <?php echo $current_blog_id === $site_in_id ? 'is-active' : ''; ?>">
+					🇮🇳 India
+				</a>
+			</div>
+		<?php elseif ( 'inline' === $style ) : ?>
+			<div class="grr-switcher-inline">
+				<a href="<?php echo esc_url( $url_global ); ?>" class="grr-switcher-link <?php echo $current_blog_id === $site_global_id ? 'is-active' : ''; ?>">
+					<span class="grr-flag">🌐</span> Global
+				</a>
+				<span class="grr-switcher-sep">|</span>
+				<a href="<?php echo esc_url( $url_bd ); ?>" class="grr-switcher-link <?php echo $current_blog_id === $site_bd_id ? 'is-active' : ''; ?>">
+					<span class="grr-flag">🇧🇩</span> Bangladesh
+				</a>
+				<span class="grr-switcher-sep">|</span>
+				<a href="<?php echo esc_url( $url_in ); ?>" class="grr-switcher-link <?php echo $current_blog_id === $site_in_id ? 'is-active' : ''; ?>">
+					<span class="grr-flag">🇮🇳</span> India
 				</a>
 			</div>
 		<?php else : ?>
@@ -258,12 +287,61 @@ final class Plugin {
 	}
 
 	/**
-	 * Enqueue frontend CSS for switcher.
+	 * Output dedicated Country Switcher in website footer (wp_footer).
+	 */
+	public function render_footer_switcher(): void {
+		$options = get_site_option( 'grr_options', array() );
+		if ( empty( $options['enable_footer_switcher'] ) ) {
+			return;
+		}
+
+		$style    = sanitize_key( $options['footer_switcher_style'] ?? 'inline' );
+		$position = sanitize_key( $options['footer_switcher_position'] ?? 'center' );
+
+		echo '<div class="grr-footer-switcher-wrapper grr-align-' . esc_attr( $position ) . '">';
+		echo '<div class="grr-footer-switcher-inner">';
+		echo '<span class="grr-footer-switcher-label"><span class="grr-globe-icon">🌐</span> ' . esc_html__( 'Region: ', 'geo-regional-router' ) . '</span>';
+		echo $this->render_frontend_switcher_shortcode( array( 'style' => $style ) );
+		echo '</div></div>';
+	}
+
+	/**
+	 * Enqueue frontend CSS for switcher and Geo-Prompt modal/banner.
 	 */
 	public function enqueue_frontend_assets(): void {
-		$options = get_site_option( 'grr_options', array() );
-		if ( ! empty( $options['enable_frontend_switcher'] ) ) {
+		$options      = get_site_option( 'grr_options', array() );
+		$is_enabled   = ! empty( $options['enabled'] );
+		$routing_mode = $options['routing_mode'] ?? 'prompt';
+
+		if ( ! empty( $options['enable_frontend_switcher'] ) || ! empty( $options['enable_footer_switcher'] ) || ! empty( $options['enable_floating_widget'] ) ) {
 			wp_enqueue_style( 'grr-frontend-css', GRR_PLUGIN_URL . 'assets/admin.css', array(), GRR_VERSION );
+		}
+
+		// Client-side Geo-Prompt (Full Page Cache compatible)
+		if ( $is_enabled && 'prompt' === $routing_mode ) {
+			wp_enqueue_style( 'grr-prompt-css', GRR_PLUGIN_URL . 'assets/grr-prompt.css', array(), GRR_VERSION );
+			wp_enqueue_script( 'grr-prompt-js', GRR_PLUGIN_URL . 'assets/grr-prompt.js', array(), GRR_VERSION, true );
+
+			wp_localize_script(
+				'grr-prompt-js',
+				'grrPromptConfig',
+				array(
+					'restUrl'       => esc_url_raw( rest_url( 'grr/v1/detect' ) ),
+					'style'         => sanitize_key( $options['prompt_style'] ?? 'card' ),
+					'delay'         => max( 0, (float) ( $options['prompt_delay'] ?? 1.5 ) ) * 1000,
+					'autoHide'      => ! empty( $options['prompt_auto_hide'] ) ? (int) $options['prompt_auto_hide'] : 7,
+					'countdown'     => max( 0, (int) ( $options['auto_redirect_countdown'] ?? 0 ) ),
+					'currentSiteId' => get_current_blog_id(),
+					'i18n'          => array(
+						'visitingFrom' => __( 'Visiting from %s?', 'geo-regional-router' ),
+						'message'      => __( 'We noticed you are visiting from %1$s. Would you like to switch to our %2$s for local pricing and service?', 'geo-regional-router' ),
+						'switchBtn'    => __( 'Switch to %s', 'geo-regional-router' ),
+						'stayBtn'      => __( 'Stay on this site', 'geo-regional-router' ),
+						'redirecting'  => __( 'Redirecting in %d seconds…', 'geo-regional-router' ),
+						'cancel'       => __( 'Cancel', 'geo-regional-router' ),
+					),
+				)
+			);
 		}
 	}
 
@@ -343,6 +421,107 @@ final class Plugin {
 	}
 
 	/**
+	 * Register REST API route for dynamic Geo detection.
+	 */
+	public function register_rest_routes(): void {
+		register_rest_route(
+			'grr/v1',
+			'/detect',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'rest_detect_country' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+
+	/**
+	 * REST API Callback: Dynamic Country Detection & Route Calculation.
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return \WP_REST_Response
+	 */
+	public function rest_detect_country( \WP_REST_Request $request ): \WP_REST_Response {
+		$options = get_site_option( 'grr_options', array() );
+
+		$override_url = sanitize_url( (string) $request->get_param( 'current_url' ) );
+		if ( empty( $override_url ) && ! empty( $_SERVER['HTTP_REFERER'] ) ) {
+			$override_url = sanitize_url( (string) $_SERVER['HTTP_REFERER'] );
+		}
+
+		$detected = $this->country_detector->detect_country();
+		$country  = $detected['country'];
+
+		$dest = $this->router->calculate_destination( $country, $options, $override_url );
+
+		$country_names = array(
+			'BD' => 'Bangladesh',
+			'IN' => 'India',
+			'US' => 'United States',
+			'GB' => 'United Kingdom',
+			'CA' => 'Canada',
+			'AU' => 'Australia',
+			'DE' => 'Germany',
+			'FR' => 'France',
+			'AE' => 'United Arab Emirates',
+			'SG' => 'Singapore',
+			'PK' => 'Pakistan',
+			'MY' => 'Malaysia',
+			'SA' => 'Saudi Arabia',
+		);
+
+		$flags = array(
+			'BD' => '🇧🇩',
+			'IN' => '🇮🇳',
+			'US' => '🇺🇸',
+			'GB' => '🇬🇧',
+			'CA' => '🇨🇦',
+			'AU' => '🇦🇺',
+			'DE' => '🇩🇪',
+			'FR' => '🇫🇷',
+			'AE' => '🇦🇪',
+			'SG' => '🇸🇬',
+			'PK' => '🇵🇰',
+			'MY' => '🇲🇾',
+			'SA' => '🇸🇦',
+		);
+
+		$country_name = $country_names[ $country ] ?? $country;
+		$flag         = $flags[ $country ] ?? '🌐';
+
+		$site_bd_id = (int) ( $options['site_bd'] ?? 0 );
+		$site_in_id = (int) ( $options['site_in'] ?? 0 );
+
+		if ( $dest['target_site_id'] === $site_bd_id ) {
+			$target_label = 'Bangladesh Store';
+		} elseif ( $dest['target_site_id'] === $site_in_id ) {
+			$target_label = 'India Store';
+		} else {
+			$target_label = 'Global Store';
+		}
+
+		$response_data = array(
+			'success'        => true,
+			'country'        => $country,
+			'country_name'   => $country_name,
+			'flag'           => $flag,
+			'should_switch'  => (bool) $dest['should_redirect'],
+			'current_url'    => $dest['current_url'],
+			'target_url'     => $dest['target_url'],
+			'target_site_id' => $dest['target_site_id'],
+			'target_label'   => $target_label,
+			'source'         => $detected['source'],
+		);
+
+		$response = rest_ensure_response( $response_data );
+		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
+		$response->header( 'Pragma', 'no-cache' );
+		$response->header( 'Expires', '0' );
+
+		return $response;
+	}
+
+	/**
 	 * Get Logger.
 	 *
 	 * @return Logger
@@ -367,5 +546,14 @@ final class Plugin {
 	 */
 	public function get_router(): Router {
 		return $this->router;
+	}
+
+	/**
+	 * Get Diagnostics.
+	 *
+	 * @return Diagnostics
+	 */
+	public function get_diagnostics(): Diagnostics {
+		return $this->diagnostics;
 	}
 }

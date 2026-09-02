@@ -1,0 +1,378 @@
+/**
+ * Geo Regional Router - Client-Side Geo-Prompt Styles
+ * Modern, responsive, accessible styles for country detection prompts.
+ */
+
+:root {
+	--grr-primary: #2563eb;
+	--grr-primary-hover: #1d4ed8;
+	--grr-bg: #ffffff;
+	--grr-text: #1e293b;
+	--grr-text-muted: #64748b;
+	--grr-border: rgba(226, 232, 240, 0.8);
+	--grr-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+	--grr-radius: 14px;
+	--grr-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--grr-bg: #0f172a;
+		--grr-text: #f8fafc;
+		--grr-text-muted: #94a3b8;
+		--grr-border: rgba(51, 65, 85, 0.6);
+		--grr-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+	}
+}
+
+/* Base Wrapper */
+.grr-prompt-wrapper {
+	font-family: var(--grr-font);
+	box-sizing: border-box;
+	z-index: 999999;
+	color: var(--grr-text);
+	-webkit-font-smoothing: antialiased;
+}
+
+.grr-prompt-wrapper * {
+	box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Style 1: Floating Card (Bottom-Right)
+   ========================================================================== */
+.grr-prompt-wrapper.grr-style-card {
+	position: fixed;
+	bottom: 24px;
+	right: 24px;
+	max-width: 420px;
+	width: calc(100% - 48px);
+	background: var(--grr-bg);
+	border: 1px solid var(--grr-border);
+	border-radius: var(--grr-radius);
+	box-shadow: var(--grr-shadow);
+	padding: 22px;
+	animation: grrSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	backdrop-filter: blur(12px);
+}
+
+/* ==========================================================================
+   Style 2: Top Notification Banner
+   ========================================================================== */
+.grr-prompt-wrapper.grr-style-banner {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	width: 100%;
+	background: var(--grr-bg);
+	border-bottom: 1px solid var(--grr-border);
+	box-shadow: var(--grr-shadow);
+	padding: 16px 24px;
+	animation: grrSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.grr-style-banner .grr-prompt-inner {
+	max-width: 1200px;
+	margin: 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+}
+
+/* ==========================================================================
+   Style 3: Centered Modal Dialog
+   ========================================================================== */
+.grr-modal-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(15, 23, 42, 0.55);
+	backdrop-filter: blur(6px);
+	z-index: 999998;
+	animation: grrFadeIn 0.3s ease-out forwards;
+}
+
+.grr-prompt-wrapper.grr-style-modal {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	max-width: 480px;
+	width: calc(100% - 40px);
+	background: var(--grr-bg);
+	border: 1px solid var(--grr-border);
+	border-radius: var(--grr-radius);
+	box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+	padding: 28px;
+	animation: grrScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================================================
+   Content Components
+   ========================================================================== */
+.grr-prompt-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.grr-prompt-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--grr-text);
+}
+
+.grr-prompt-flag {
+	font-size: 22px;
+	line-height: 1;
+}
+
+.grr-prompt-close {
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	color: var(--grr-text-muted);
+	font-size: 18px;
+	padding: 4px;
+	line-height: 1;
+	border-radius: 6px;
+	transition: all 0.15s ease;
+}
+
+.grr-prompt-close:hover {
+	color: var(--grr-text);
+	background: rgba(100, 116, 139, 0.12);
+}
+
+.grr-prompt-body {
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--grr-text-muted);
+	margin-bottom: 18px;
+}
+
+.grr-prompt-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+/* Buttons */
+.grr-btn-switch {
+	background: var(--grr-primary);
+	color: #ffffff !important;
+	border: none;
+	border-radius: 8px;
+	padding: 10px 18px;
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none !important;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.grr-btn-switch:hover {
+	background: var(--grr-primary-hover);
+	box-shadow: 0 6px 12px -2px rgba(37, 99, 235, 0.35);
+	transform: translateY(-1px);
+}
+
+.grr-btn-stay {
+	background: transparent;
+	color: var(--grr-text-muted) !important;
+	border: 1px solid var(--grr-border);
+	border-radius: 8px;
+	padding: 10px 16px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	text-decoration: none !important;
+}
+
+.grr-btn-stay:hover {
+	color: var(--grr-text) !important;
+	border-color: var(--grr-text-muted);
+	background: rgba(100, 116, 139, 0.05);
+}
+
+/* Auto-redirect Countdown */
+.grr-countdown-bar-wrap {
+	margin-top: 14px;
+	background: rgba(100, 116, 139, 0.15);
+	height: 4px;
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+.grr-countdown-bar {
+	height: 100%;
+	background: var(--grr-primary);
+	width: 100%;
+	transition: width linear;
+}
+
+.grr-countdown-text {
+	font-size: 12px;
+	color: var(--grr-text-muted);
+	margin-top: 6px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.grr-countdown-cancel {
+	background: none;
+	border: none;
+	color: var(--grr-primary);
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	padding: 0;
+	text-decoration: underline;
+}
+
+/* ==========================================================================
+   Keyframe Animations
+   ========================================================================== */
+@keyframes grrSlideUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes grrSlideDown {
+	from {
+		opacity: 0;
+		transform: translateY(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes grrScaleIn {
+	from {
+		opacity: 0;
+		transform: translate(-50%, -46%) scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+}
+
+@keyframes grrFadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+/* Exit / Fade-Out Animations */
+.grr-prompt-wrapper.grr-fade-out {
+	animation: grrFadeOutDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+.grr-prompt-wrapper.grr-style-banner.grr-fade-out {
+	animation: grrFadeOutUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+.grr-prompt-wrapper.grr-style-modal.grr-fade-out {
+	animation: grrFadeOutScale 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+.grr-modal-backdrop.grr-fade-out {
+	animation: grrFadeOutBackdrop 0.4s ease-out forwards !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+@keyframes grrFadeOutDown {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+}
+
+@keyframes grrFadeOutUp {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(-20px);
+	}
+}
+
+@keyframes grrFadeOutScale {
+	from {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+	to {
+		opacity: 0;
+		transform: translate(-50%, -46%) scale(0.95);
+	}
+}
+
+@keyframes grrFadeOutBackdrop {
+	from { opacity: 1; }
+	to { opacity: 0; }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+	.grr-prompt-wrapper.grr-style-card {
+		bottom: 12px;
+		right: 12px;
+		left: 12px;
+		width: calc(100% - 24px);
+		max-width: none;
+		padding: 16px;
+	}
+
+	.grr-style-banner .grr-prompt-inner {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.grr-prompt-actions {
+		width: 100%;
+	}
+
+	.grr-btn-switch, .grr-btn-stay {
+		flex: 1;
+		justify-content: center;
+		text-align: center;
+	}
+}

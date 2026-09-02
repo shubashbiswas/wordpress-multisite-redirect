@@ -11,6 +11,10 @@
 
 ## 🌟 Key Features
 
+- **⚡ 100% LiteSpeed Full Page Cache Compatible (Static First + Geo-Prompt)**: Serves every URL (`/`, `/bd/`, `/in/`) instantly in < 20ms from static page cache, followed by an asynchronous background GeoLite2 check that displays a sleek regional switch prompt or countdown.
+- **🚀 Dual Architecture Modes**:
+  1. *Client-Side Geo-Prompt* (Recommended for LiteSpeed, Varnish, CDNs, and Google SEO compliance).
+  2. *Immediate 302 Redirect Engine* (Traditional backend PHP redirect).
 - **⚡ Dynamic Geographic Routing**: Automatically routes visitors to their country's designated site (`BD` → `/bd/`, `IN` → `/in/`, All others → Global `/`).
 - **🔀 Cross-Regional Correction**: Seamlessly corrects direct access to wrong regional URLs (e.g., an Indian visitor accessing `https://domain.com/bd/about/` is routed to `https://domain.com/in/about/`).
 - **🔗 Path & Query String Preservation**: Preserves relative paths (`/about/`, `/products/example/`) and all query parameters (`utm_*`, `fbclid`, `gclid`, custom args).
@@ -21,6 +25,7 @@
   3. Cloudflare `CF-IPCountry` Header
   4. Configured Custom Proxy Header (e.g., `HTTP_X_GEOIP_COUNTRY`)
   5. Local MaxMind GeoLite2 `.mmdb` Binary Database
+- **🎨 Modern Geo-Prompt UI**: Responsive Floating Card, Top Banner, or Center Modal Dialog with auto-redirect countdown bar and instant dismissal persistence.
 - **🎨 Theme-Embedded Visitor Switcher**: Shortcode `[geo_regional_switcher]` for embedding inline dropdowns, flags, or pill buttons directly inside any theme without popups.
 - **🔍 Auto SEO hreflang Tags**: Injects `<link rel="alternate" hreflang="...">` tags into page `<head>` for `x-default`, `bn-BD`, and `hi-IN`.
 - **⚡ Edge Cache Helper (`Vary` Header)**: Sends `Vary: CF-IPCountry, Accept-Language` response headers to prevent CDNs (Cloudflare, LiteSpeed, Nginx, Varnish) from caching wrong regional redirects.
@@ -31,6 +36,26 @@
 
 ## 🏗️ Architecture Overview
 
+The plugin provides **two powerful architectural modes**:
+
+### Mode 1: Client-Side Geo-Prompt (Default & LiteSpeed Full Page Cache Compatible)
+```mermaid
+graph TD
+    Request[HTTP Visitor Request] --> CacheCheck[LiteSpeed Full Page Cache]
+    CacheCheck --> InstantRender[⚡ Page Serves from Static Cache in < 20ms]
+    InstantRender --> ClientDelay[Client Browser: 1.5s Non-Blocking Delay]
+    ClientDelay --> AsyncREST[Asynchronous Fetch: /wp-json/grr/v1/detect]
+    AsyncREST --> CountryCheck{Visitor Country Matches Current Site?}
+    CountryCheck -- Yes --> Complete[Visitor Stays - No Interruptions]
+    CountryCheck -- No --> CheckCookies{Visitor Already Decided?}
+    CheckCookies -- Yes (Dismissed or Set) --> Complete
+    CheckCookies -- No --> ShowPrompt[Display Sleek Geo-Prompt Card / Banner]
+    ShowPrompt --> UserChoice{User Action}
+    UserChoice -- Clicks 'Switch' or Countdown Expires --> SavePref[Save Cookie & Redirect to Regional Site]
+    UserChoice -- Clicks 'Stay' or '✕' --> SaveDismiss[Save Dismissal Cookie & Close]
+```
+
+### Mode 2: Immediate 302 Redirect Engine (Backend PHP)
 ```mermaid
 graph TD
     Request[HTTP Visitor Request] --> EarlyCookies[Country_Detector::process_early_cookies]
@@ -54,15 +79,21 @@ graph TD
 
 ## 🚀 Quick Start & Installation
 
-1. Upload the `multisite-redirect` plugin directory to `/wp-content/plugins/`.
+1. Upload the `redirect` plugin directory to `/wp-content/plugins/`.
 2. Go to **My Sites > Network Admin > Plugins** and click **Network Activate**.
 3. Navigate to **Network Admin > Settings > Geo Regional Router**.
 4. Under **General & Site Mapping**:
+   - Select **Routing Architecture Mode**:
+     - **Client-Side Geo-Prompt** *(Recommended)*: Allows LiteSpeed Cache to full-page cache all URLs (`/`, `/bd/`, `/in/`) while prompting visitors asynchronously.
+     - **Immediate 302 Redirect**: Executes traditional server-side PHP redirection on `template_redirect`.
    - Assign **Global / Default Site** (e.g. `https://domain.com/`).
    - Assign **Bangladesh Site** (e.g. `https://domain.com/bd/`).
    - Assign **India Site** (e.g. `https://domain.com/in/`).
    - Select Redirect Status Code (Default: `302 Found`).
    - Check **Enable Routing** and click **Save Network Settings**.
+5. Under **SEO & Edge Cache & UI**:
+   - Choose prompt layout: **Floating Card (Bottom-Right)**, **Top Notification Bar**, or **Center Modal Dialog**.
+   - Configure prompt appearance delay (default `1.5s`) and optional auto-redirect countdown timer.
 
 ---
 
@@ -74,7 +105,7 @@ Embed the regional switcher anywhere in your theme without popups:
 Add a **Shortcode Block** to your Header or Footer pattern:
 - **Dropdown Style** (Default): `[geo_regional_switcher]`
 - **Pill Buttons Style**: `[geo_regional_switcher style="buttons"]`
-- **Flags Style**: `[geo_regional_switcher style="flags"]`
+- **Minimal Text Style**: `[geo_regional_switcher style="minimal"]`
 
 ### 2. Classic PHP Themes (`header.php`, `footer.php`)
 Place this code snippet anywhere in your PHP template files:
@@ -95,15 +126,19 @@ Enable **"Automatically render floating regional switcher in bottom-right corner
 
 | Tab Name | Description |
 | :--- | :--- |
-| **General & Site Mapping** | Enable/disable router, assign Multisite Blog IDs to regional roles, set status code (302/307/301/308), configure cookie persistence. |
+| **General & Site Mapping** | Enable/disable router, choose between Client-Side Geo-Prompt and Immediate 302 Redirect mode, assign Multisite Blog IDs to regional roles, set status code (302/307/301/308), configure cookie persistence. |
 | **Exclusions & Bypasses** | Skip rules for logged-in admins, logged-in users, crawlers/bots, REST API (`/wp-json/`), AJAX, Cron, Admin URLs, XML-RPC, RSS feeds, Sitemaps, and Previews. |
 | **Country Detection** | Cloudflare `CF-IPCountry`, Custom HTTP Header name, Trusted Proxy IP ranges (CIDR support), MaxMind database path & License key for auto-updates. |
-| **SEO & Edge Cache & UI** | Auto-inject `hreflang` meta tags, send `Vary` edge cache headers, Admin Bar Quick Switcher, Frontend Switcher settings. |
+| **SEO & Edge Cache & UI** | Configure Geo-Prompt layout (Floating Card, Top Banner, Center Modal), display delay, countdown timer, auto-inject `hreflang` meta tags, send `Vary` edge cache headers, Admin Bar Quick Switcher, Frontend Switcher settings. |
 | **Diagnostics Tool** | Real-time URL routing simulator & debug log manager. |
 
 ---
 
 ## 🧪 Verification & Test Matrix
+
+> **Note on Routing Modes:**
+> * In **Mode 1 (Client-Side Geo-Prompt)**: The requested URL is served instantly from LiteSpeed Full Page Cache, and a prompt card/banner appears allowing the visitor to switch to the Resulting Destination (or auto-redirects if countdown is enabled).
+> * In **Mode 2 (Immediate Redirect Engine)**: The server immediately sends an HTTP 302 redirect taking the visitor directly to the Resulting Destination.
 
 | Test Case | Scenario | Visitor Country | Requested URL | Resulting Destination |
 | :---: | :--- | :---: | :--- | :--- |

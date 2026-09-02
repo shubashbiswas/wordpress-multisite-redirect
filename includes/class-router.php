@@ -114,6 +114,13 @@ class Router {
 			return;
 		}
 
+		$routing_mode = $options['routing_mode'] ?? 'prompt';
+		if ( 'prompt' === $routing_mode ) {
+			// In client-side prompt mode, do not execute immediate 302 redirects in PHP.
+			// LiteSpeed Cache can serve the static cached page instantly, and JS prompt will handle notification/switch.
+			return;
+		}
+
 		if ( headers_sent() ) {
 			$this->logger->log( 'Skipping routing: Headers already sent.' );
 			return;
@@ -210,11 +217,12 @@ class Router {
 	 *
 	 * @param string $country 2-letter ISO Country Code.
 	 * @param array  $options Plugin options array.
+	 * @param string $override_url Optional URL to evaluate against (e.g. from frontend REST API call).
 	 * @return array
 	 */
-	public function calculate_destination( string $country, array $options ): array {
+	public function calculate_destination( string $country, array $options, string $override_url = '' ): array {
 		$current_blog_id = get_current_blog_id();
-		$current_url     = $this->get_current_url();
+		$current_url     = ! empty( $override_url ) ? $override_url : $this->get_current_url();
 
 		$site_global_id = (int) ( $options['site_global'] ?? 0 );
 		$site_bd_id     = (int) ( $options['site_bd'] ?? 0 );
@@ -250,10 +258,9 @@ class Router {
 		$target_site_url = get_site_url( $target_site_id );
 
 		// Parse request path
-		$request_uri = $_SERVER['REQUEST_URI'] ?? '/';
-		$parsed_uri  = wp_parse_url( $request_uri );
-		$path        = $parsed_uri['path'] ?? '/';
-		$query       = isset( $parsed_uri['query'] ) ? '?' . $parsed_uri['query'] : '';
+		$parsed_uri = wp_parse_url( $current_url );
+		$path       = $parsed_uri['path'] ?? '/';
+		$query      = isset( $parsed_uri['query'] ) ? '?' . $parsed_uri['query'] : '';
 
 		// Extract clean relative path by stripping site path prefixes
 		$clean_path = $this->extract_clean_path( $path, array( $global_site_url, $bd_site_url, $in_site_url ) );
