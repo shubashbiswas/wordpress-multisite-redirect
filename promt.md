@@ -147,7 +147,7 @@ The `Country_Detector::detect_country()` method checks sources in strict priorit
 5. **Configured Custom Header**: E.g., `HTTP_X_GEOIP_COUNTRY` (only trusted if IP is within trusted proxies).
 6. **MaxMind GeoLite2 Binary Database**:
    - *Check 1:* User-configured custom path (`$options['maxmind_db_path']`).
-   - *Check 2:* **WooCommerce MaxMind Auto-Discovery** via `\WC_Geolocation::get_local_database_path()`.
+   - *Check 2:* **WooCommerce MaxMind Auto-Discovery** via `Country_Detector::get_woocommerce_database_path()` (WooCommerce 3.9+ integration service).
    - *Check 3:* WooCommerce uploads directory (`wp-content/uploads/woocommerce_uploads/*GeoLite2-Country.mmdb`).
    - *Check 4:* Bundled plugin fallback (`assets/GeoLite2/GeoLite2-Country.mmdb`).
 7. **Fallback**: Returns `'UNKNOWN'` (prevents redirection loops).

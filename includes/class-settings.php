@@ -282,23 +282,7 @@ class Settings {
 									<th scope="row"><?php esc_html_e( 'MaxMind Database Path & License', 'geo-regional-router' ); ?></th>
 									<td>
 										<?php
-										$wc_detected_db = '';
-										if ( class_exists( 'WC_Geolocation' ) && method_exists( 'WC_Geolocation', 'get_local_database_path' ) ) {
-											$wc_path = \WC_Geolocation::get_local_database_path();
-											if ( ! empty( $wc_path ) && file_exists( $wc_path ) && is_readable( $wc_path ) ) {
-												$wc_detected_db = $wc_path;
-											}
-										}
-										if ( empty( $wc_detected_db ) ) {
-											$upload_dir = wp_upload_dir();
-											$wc_uploads = trailingslashit( $upload_dir['basedir'] ) . 'woocommerce_uploads/';
-											if ( is_dir( $wc_uploads ) ) {
-												$glob_matches = glob( $wc_uploads . '*GeoLite2-Country.mmdb' );
-												if ( ! empty( $glob_matches ) && file_exists( $glob_matches[0] ) && is_readable( $glob_matches[0] ) ) {
-													$wc_detected_db = $glob_matches[0];
-												}
-											}
-										}
+										$wc_detected_db = Country_Detector::get_woocommerce_database_path() ?? '';
 										?>
 										<input type="text" name="maxmind_db_path" value="<?php echo esc_attr( $options['maxmind_db_path'] ?? '' ); ?>" class="large-text" placeholder="/path/to/GeoLite2-Country.mmdb" />
 										<p class="description">

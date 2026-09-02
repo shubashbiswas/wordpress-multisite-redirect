@@ -201,23 +201,9 @@ class Country_Detector
 
 			// 1. If not configured or missing, check WooCommerce GeoIP database
 			if (empty($maxmind_db) || ! file_exists($maxmind_db)) {
-				if (class_exists('WC_Geolocation') && method_exists('WC_Geolocation', 'get_local_database_path')) {
-					$wc_path = \WC_Geolocation::get_local_database_path();
-					if (! empty($wc_path) && file_exists($wc_path) && is_readable($wc_path)) {
-						$maxmind_db = $wc_path;
-					}
-				}
-			}
-
-			// 2. Check standard WooCommerce uploads folder if class wasn't loaded
-			if (empty($maxmind_db) || ! file_exists($maxmind_db)) {
-				$upload_dir = wp_upload_dir();
-				$wc_uploads = trailingslashit($upload_dir['basedir']) . 'woocommerce_uploads/';
-				if (is_dir($wc_uploads)) {
-					$glob_matches = glob($wc_uploads . '*GeoLite2-Country.mmdb');
-					if (! empty($glob_matches) && file_exists($glob_matches[0]) && is_readable($glob_matches[0])) {
-						$maxmind_db = $glob_matches[0];
-					}
+				$wc_path = self::get_woocommerce_database_path();
+				if (! empty($wc_path)) {
+					$maxmind_db = $wc_path;
 				}
 			}
 
@@ -603,5 +589,63 @@ class Country_Detector
 			return array($left, $right);
 		}
 		return array(0, 0);
+	}
+
+	/**
+	 * Retrieve WooCommerce's MaxMind database path without triggering deprecation notices.
+	 *
+	 * WC_Geolocation::get_local_database_path() was deprecated in WooCommerce 3.9.0.
+	 * In 3.9.0+, MaxMind geolocation integration handles the database path.
+	 *
+	 * @return string|null Path to database file if found and readable, null otherwise.
+	 */
+	public static function get_woocommerce_database_path(): ?string
+	{
+		// 1. Modern WooCommerce (>= 3.9.0): Retrieve via MaxMind Geolocation integration service
+		if (function_exists('wc') && ! empty(wc()->integrations)) {
+			$integration = wc()->integrations->get_integration('maxmind_geolocation');
+			if (is_object($integration) && method_exists($integration, 'get_database_service')) {
+				$service = $integration->get_database_service();
+				if (is_object($service) && method_exists($service, 'get_database_path')) {
+					$candidate = $service->get_database_path();
+					if (! empty($candidate) && file_exists($candidate) && is_readable($candidate)) {
+						return $candidate;
+					}
+				}
+			}
+		}
+
+		// 2. Direct database path check from WooCommerce MaxMind settings option
+		$settings = get_option('woocommerce_maxmind_geolocation_settings');
+		if (is_array($settings) && ! empty($settings['database_prefix'])) {
+			$upload_dir    = wp_upload_dir();
+			$candidate     = trailingslashit($upload_dir['basedir']) . 'woocommerce_uploads/' . $settings['database_prefix'] . '-GeoLite2-Country.mmdb';
+			$filtered_path = apply_filters('woocommerce_maxmind_geolocation_database_path', $candidate);
+			if (file_exists($filtered_path) && is_readable($filtered_path)) {
+				return $filtered_path;
+			}
+		}
+
+		// 3. Fallback for legacy WooCommerce (< 3.9.0) only
+		if (defined('WC_VERSION') && version_compare(WC_VERSION, '3.9.0', '<')) {
+			if (class_exists('WC_Geolocation') && method_exists('WC_Geolocation', 'get_local_database_path')) {
+				$candidate = \WC_Geolocation::get_local_database_path();
+				if (! empty($candidate) && file_exists($candidate) && is_readable($candidate)) {
+					return $candidate;
+				}
+			}
+		}
+
+		// 4. Fallback: Search woocommerce_uploads directory for any GeoLite2-Country.mmdb file
+		$upload_dir = wp_upload_dir();
+		$wc_uploads = trailingslashit($upload_dir['basedir']) . 'woocommerce_uploads/';
+		if (is_dir($wc_uploads)) {
+			$glob_matches = glob($wc_uploads . '*GeoLite2-Country.mmdb');
+			if (! empty($glob_matches) && file_exists($glob_matches[0]) && is_readable($glob_matches[0])) {
+				return $glob_matches[0];
+			}
+		}
+
+		return null;
 	}
 }
