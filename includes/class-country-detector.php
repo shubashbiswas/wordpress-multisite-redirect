@@ -62,12 +62,24 @@ class Country_Detector
 		}
 
 		if (isset($_GET['grr_set_country'])) {
+			$options     = get_site_option('grr_options', array());
+			$persistence = $options['cookie_persistence'] ?? '7d';
+			$ttl_days    = 7;
+			if ( '24h' === $persistence ) {
+				$ttl_days = 1;
+			} elseif ( '30d' === $persistence ) {
+				$ttl_days = 30;
+			} elseif ( 'session' === $persistence || 'disabled' === $persistence ) {
+				$ttl_days = 0;
+			}
+
 			$set_country = strtoupper(sanitize_text_field(wp_unslash($_GET['grr_set_country'])));
 			if ('RESET' === $set_country) {
 				setcookie('grr_user_manual_country', '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN);
 				unset($_COOKIE['grr_user_manual_country']);
 			} elseif (preg_match('/^[A-Z]{2,6}$/', $set_country)) {
-				setcookie('grr_user_manual_country', $set_country, time() + (30 * DAY_IN_SECONDS), COOKIEPATH, COOKIE_DOMAIN);
+				$expiry = ($ttl_days > 0) ? time() + ($ttl_days * DAY_IN_SECONDS) : 0;
+				setcookie('grr_user_manual_country', $set_country, $expiry, COOKIEPATH, COOKIE_DOMAIN);
 				$_COOKIE['grr_user_manual_country'] = $set_country;
 			}
 		}

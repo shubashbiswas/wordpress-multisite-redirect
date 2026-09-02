@@ -322,6 +322,16 @@ final class Plugin {
 			wp_enqueue_style( 'grr-prompt-css', GRR_PLUGIN_URL . 'assets/grr-prompt.css', array(), GRR_VERSION );
 			wp_enqueue_script( 'grr-prompt-js', GRR_PLUGIN_URL . 'assets/grr-prompt.js', array(), GRR_VERSION, true );
 
+			$persistence = $options['cookie_persistence'] ?? '7d';
+			$cookie_ttl  = 7;
+			if ( '24h' === $persistence ) {
+				$cookie_ttl = 1;
+			} elseif ( '30d' === $persistence ) {
+				$cookie_ttl = 30;
+			} elseif ( 'session' === $persistence || 'disabled' === $persistence ) {
+				$cookie_ttl = 0;
+			}
+
 			wp_localize_script(
 				'grr-prompt-js',
 				'grrPromptConfig',
@@ -330,6 +340,7 @@ final class Plugin {
 					'style'         => sanitize_key( $options['prompt_style'] ?? 'card' ),
 					'delay'         => max( 0, (float) ( $options['prompt_delay'] ?? 1.5 ) ) * 1000,
 					'autoHide'      => ! empty( $options['prompt_auto_hide'] ) ? (int) $options['prompt_auto_hide'] : 7,
+					'cookieTtl'     => $cookie_ttl,
 					'countdown'     => max( 0, (int) ( $options['auto_redirect_countdown'] ?? 0 ) ),
 					'currentSiteId' => get_current_blog_id(),
 					'i18n'          => array(

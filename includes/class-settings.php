@@ -136,13 +136,14 @@ class Settings {
 									<th scope="row"><?php esc_html_e( 'Remember Routing Decision', 'geo-regional-router' ); ?></th>
 									<td>
 										<select name="cookie_persistence">
-											<option value="disabled" <?php selected( 'disabled', $options['cookie_persistence'] ?? 'disabled' ); ?>><?php esc_html_e( 'Disabled (Re-evaluate on every request)', 'geo-regional-router' ); ?></option>
-											<option value="session" <?php selected( 'session', $options['cookie_persistence'] ?? 'disabled' ); ?>><?php esc_html_e( 'Session Only (Until browser closes)', 'geo-regional-router' ); ?></option>
-											<option value="24h" <?php selected( '24h', $options['cookie_persistence'] ?? 'disabled' ); ?>><?php esc_html_e( '24 Hours', 'geo-regional-router' ); ?></option>
-											<option value="7d" <?php selected( '7d', $options['cookie_persistence'] ?? 'disabled' ); ?>><?php esc_html_e( '7 Days', 'geo-regional-router' ); ?></option>
+											<option value="disabled" <?php selected( 'disabled', $options['cookie_persistence'] ?? '7d' ); ?>><?php esc_html_e( 'Disabled (Re-evaluate on every request)', 'geo-regional-router' ); ?></option>
+											<option value="session" <?php selected( 'session', $options['cookie_persistence'] ?? '7d' ); ?>><?php esc_html_e( 'Session Only (Until browser closes)', 'geo-regional-router' ); ?></option>
+											<option value="24h" <?php selected( '24h', $options['cookie_persistence'] ?? '7d' ); ?>><?php esc_html_e( '24 Hours', 'geo-regional-router' ); ?></option>
+											<option value="7d" <?php selected( '7d', $options['cookie_persistence'] ?? '7d' ); ?>><?php esc_html_e( '7 Days (Recommended)', 'geo-regional-router' ); ?></option>
+											<option value="30d" <?php selected( '30d', $options['cookie_persistence'] ?? '7d' ); ?>><?php esc_html_e( '30 Days', 'geo-regional-router' ); ?></option>
 										</select>
 										<p class="description">
-											<?php esc_html_e( 'Controls visitor country cookie caching. Note: The ?skipredirect parameter always overrides cookie persistence.', 'geo-regional-router' ); ?>
+											<?php esc_html_e( 'Controls how long to remember a visitor\'s regional choice or stay decision (both for redirects and prompt banner). Default: 7 Days.', 'geo-regional-router' ); ?>
 										</p>
 									</td>
 								</tr>

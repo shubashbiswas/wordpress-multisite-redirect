@@ -3,7 +3,7 @@
  * Plugin Name: Geo Regional Router
  * Plugin URI: https://example.com/plugins/geo-regional-router
  * Description: Production-ready WordPress Multisite country-based URL routing engine for multi-regional WordPress installations.
- * Version: 1.0.4
+ * Version: 1.0.6
  * Author: Antigravity
  * Author URI: https://example.com
  * License: GPL-2.0-or-later
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'GRR_VERSION', '1.0.4' );
+define( 'GRR_VERSION', '1.0.6' );
 define( 'GRR_PLUGIN_FILE', __FILE__ );
 define( 'GRR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GRR_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -97,7 +97,7 @@ register_activation_hook( __FILE__, function (): void {
 			'skip_feeds'                   => 0,
 			'skip_sitemaps'                => 1,
 			'skip_previews'                => 1,
-			'cookie_persistence'           => 'disabled',
+			'cookie_persistence'           => '7d',
 			'country_source_cf'            => 1,
 			'country_source_header'        => 0,
 			'country_custom_header_name'   => 'HTTP_X_GEOIP_COUNTRY',

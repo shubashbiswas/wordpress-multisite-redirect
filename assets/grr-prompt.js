@@ -5,7 +5,7 @@
 (function () {
 	'use strict';
 
-	console.log('[GRR] Geo Regional Router prompt script loaded (v1.0.3).');
+	console.log('[GRR] Geo Regional Router prompt script loaded (v1.0.6).');
 
 	if (typeof window === 'undefined') {
 		return;
@@ -43,19 +43,20 @@
 		return;
 	}
 
+	const manualCountry = getCookie('grr_user_manual_country');
 	const isTestMode = window.location.search.indexOf('grr_test_country') !== -1;
 	if (isTestMode) {
 		console.log('[GRR] Test mode active via query parameter.');
 	}
 
-	// If visitor already explicitly dismissed the prompt, don't nag them
-	if (!isTestMode && getCookie('grr_choice_dismissed') === '1') {
+	// If visitor already explicitly chose to stay on this website (and hasn't chosen another region), don't nag them
+	if (!manualCountry && !isTestMode && getCookie('grr_choice_dismissed') === '1') {
 		console.log('[GRR] Prompt skipped: visitor previously chose to stay on this website (grr_choice_dismissed=1).');
 		return;
 	}
 
-	// Show strictly ONCE per browser session across all pages
-	if (!isTestMode) {
+	// Show strictly ONCE per browser session across all pages for undecided visitors
+	if (!manualCountry && !isTestMode) {
 		try {
 			if (sessionStorage.getItem('grr_session_shown') === '1') {
 				console.log('[GRR] Prompt skipped: already shown once in this session (sessionStorage).');
@@ -73,8 +74,15 @@
 	 * Initialize async check after DOM is ready and configured delay has elapsed.
 	 */
 	function init() {
-		const delay = Math.max(0, parseInt(grrPromptConfig.delay, 10) || 1500);
-		console.log('[GRR] Scheduling geo detection check in ' + delay + 'ms...');
+		// If visitor has an established manual regional preference, route immediately without delay
+		const hasManualChoice = !!getCookie('grr_user_manual_country');
+		const delay = hasManualChoice ? 0 : Math.max(0, parseInt(grrPromptConfig.delay, 10) || 1500);
+
+		if (hasManualChoice) {
+			console.log('[GRR] Visitor has saved regional preference. Checking route immediately...');
+		} else {
+			console.log('[GRR] Scheduling geo detection check in ' + delay + 'ms...');
+		}
 
 		setTimeout(function () {
 			fetchGeoData();
@@ -112,10 +120,11 @@
 				return;
 			}
 
-			// Verify manual country cookie doesn't match current site
-			const manualCountry = getCookie('grr_user_manual_country');
-			if (manualCountry && manualCountry === data.country) {
-				console.log('[GRR] Manual country already matches.');
+			// If real visitor ALREADY explicitly chose this regional site previously, automatically redirect them!
+			const savedManualCountry = getCookie('grr_user_manual_country');
+			if (!isTestMode && savedManualCountry && savedManualCountry === data.country) {
+				console.log('[GRR] Visitor previously selected ' + savedManualCountry + '. Automatically redirecting to: ' + data.target_url);
+				window.location.replace(data.target_url);
 				return;
 			}
 
@@ -201,6 +210,8 @@
 		} catch (e) {}
 		setCookie('grr_session_shown', '1', 0);
 
+		const cookieTtlDays = parseInt(grrPromptConfig.cookieTtl, 10) || 7;
+
 		// Cleanup handler: If visitor does not choose an option, assume they want to stay on this website
 		function dismissPrompt(rememberDismissal) {
 			console.log('[GRR] Dismissing prompt (fade out)...');
@@ -209,8 +220,8 @@
 			} catch (e) {}
 			setCookie('grr_session_shown', '1', 0);
 
-			// Always persist choice to stay on this website for 30 days
-			setCookie('grr_choice_dismissed', '1', 30);
+			// Always persist choice to stay on this website for configured TTL (default 7 days)
+			setCookie('grr_choice_dismissed', '1', cookieTtlDays);
 
 			wrapper.classList.add('grr-fade-out');
 			if (backdrop) {
@@ -250,8 +261,8 @@
 
 				if (remaining <= 0) {
 					clearInterval(interval);
-					setCookie('grr_user_manual_country', data.country, 30);
-					setCookie('grr_visitor_country', data.country, 30);
+					setCookie('grr_user_manual_country', data.country, cookieTtlDays);
+					setCookie('grr_visitor_country', data.country, cookieTtlDays);
 					window.location.href = data.target_url;
 				}
 			}, 1000);
@@ -286,8 +297,8 @@
 		if (switchBtn) {
 			switchBtn.addEventListener('click', function (e) {
 				e.preventDefault();
-				setCookie('grr_user_manual_country', data.country, 30);
-				setCookie('grr_visitor_country', data.country, 30);
+				setCookie('grr_user_manual_country', data.country, cookieTtlDays);
+				setCookie('grr_visitor_country', data.country, cookieTtlDays);
 				window.location.href = data.target_url;
 			});
 		}
